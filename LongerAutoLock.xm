@@ -49,6 +49,7 @@
 -(void)setUserInfo:(id)arg1;
 -(void)setShortTitleDictionary:(id)arg1;
 -(void)setTitleDictionary:(id)arg1;
+-(void)setButtonAction:(SEL)arg1;
 
 -(NSString *)name;
 -(NSString *)identifier;
@@ -61,6 +62,7 @@
 -(id)userInfo;
 -(NSDictionary *)titleDictionary;
 -(NSDictionary *)shortTitleDictionary;
+-(SEL)buttonAction;
 @end
 
 %hook PSListItemsController
@@ -74,9 +76,7 @@
 	
 	if(inAutoLock){
 		NSMutableArray *additional = [[NSMutableArray alloc] init];
-		[additional addObject:[items firstObject]];
-
-		for(int i = 1; i < items.count - 1; i++)
+		for(int i = 0; i < items.count - 1; i++)
 			[additional addObject:items[i]];
 
 		// Has to be greater than 1 Minute (value <60 doesn't seem to apply)
@@ -84,12 +84,13 @@
 		[tenMinutes setValues:@[@600]];
 		[tenMinutes setTitleDictionary:@{@600 : @"10 Minutes"}];
 		[tenMinutes setShortTitleDictionary:@{@600 : @"10 Minutes"}];
+		[tenMinutes setButtonAction:[first buttonAction]];
 		[additional addObject:tenMinutes];
 
 		[additional addObject:[items lastObject]];
 		items = [[NSArray alloc] initWithArray:additional];
 		
-		NSLog(@"[LongerAutoLock] Inserted additional specifiers (%@, %@) to create: %@", tenSeconds, tenMinutes, items);
+		NSLog(@"[LongerAutoLock] Inserted additional specifier (%@) to create: %@", tenMinutes, items);
 	}
 
 	return items;
