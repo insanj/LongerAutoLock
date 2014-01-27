@@ -78,6 +78,9 @@
 			[additional addObject:items[i]];
 
 		PSSpecifier *ten = [PSSpecifier preferenceSpecifierNamed:@"10 Minutes" target:[first target] set:MSHookIvar<SEL>(first, "setter") get:MSHookIvar<SEL>(first, "getter") detail:[first detailControllerClass] cell:[first cellType] edit:[first editPaneClass]];
+		[ten setValues:@[@600]];
+		[ten setTitleDictionary:@{@60 : @"10 Minutes"}];
+		[ten setShortTitleDictionary:@{@60 : @"10 Minutes"}];
 		[additional addObject:ten];
 
 		[additional addObject:[items lastObject]];
