@@ -87,27 +87,42 @@ static LLAlertViewDelegate *lldelegate;
 
 %end
 
+@interface PSListItemsController (LongerAutoLock)
+-(void)longerautolock_addFooterToView;
+@end
+
+
 %hook PSListItemsController
+static UILabel *footerLabel;
 
 -(void)viewWillAppear:(BOOL)arg1{
 	%orig();
+	[self longerautolock_addFooterToView];
+}
+
+-(void)reloadSpecifiers{
+	%orig();
+	[self longerautolock_addFooterToView];
+}
+
+%new -(void)longerautolock_addFooterToView{
+	if(footerLabel){
+		[footerLabel removeFromSuperview];
+		footerLabel = nil;
+	}
 
 	NSString *footerText = @"Shorter Auto-Lock times are more secure. Using custom LongerAutoLock times forfeit possible privacy for convenience. Please use responsibly.";
-	CGSize footerSize = [footerText boundingRectWithSize:CGSizeMake([UIApplication sharedApplication].keyWindow.frame.size.width, CGFLOAT_MAX) options:NSStringDrawingUsesLineFragmentOrigin attributes:@{NSFontAttributeName : [UIFont systemFontOfSize:12.0]} context:nil].size;
+	CGSize footerSize = [footerText boundingRectWithSize:CGSizeMake([UIApplication sharedApplication].keyWindow.frame.size.width - 10.0, CGFLOAT_MAX) options:NSStringDrawingUsesLineFragmentOrigin attributes:@{NSFontAttributeName : [UIFont systemFontOfSize:12.0]} context:nil].size;
 		
-	UILabel *footerLabel = [[UILabel alloc] initWithFrame:CGRectMake(0.0, [[self table] rectForSection:0].size.height, footerSize.width, footerSize.height)];
+    footerLabel = [[UILabel alloc] initWithFrame:CGRectMake(5.0, [[self table] rectForSection:0].size.height + 22.0, footerSize.width, footerSize.height)];
 	footerLabel.numberOfLines = 0;
 	[footerLabel setUserInteractionEnabled:NO];
 	[footerLabel setBackgroundColor:[UIColor clearColor]];
 	[footerLabel setText:footerText];
 	[footerLabel setFont:[UIFont systemFontOfSize:12.0]];
 	[footerLabel setTextColor:[UIColor darkGrayColor]];
-
-	CGRect prev = self.view.frame;
-	prev.size.height += footerSize.height;
 	[self.view addSubview:footerLabel];
-}
-
+}	
 
 -(id)itemsFromParent{
 	NSArray *items = %orig();
