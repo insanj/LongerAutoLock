@@ -10,9 +10,9 @@
 -(void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex{
 	if(buttonIndex != 0){
 		NSString *durationText = [alertView textFieldAtIndex:0].text;
-		NSNumber *duration = [NSNumber numberWithInt:[durationText intValue]];
-		if(!duration || [duration intValue] < 300){
-			[[[[UIAlertView alloc] initWithTitle:@"Auto-Lock Duration Invalud" message:[NSString stringWithFormat:@"The requested duration, %@, is invalid. Make sure your requests are just numbers of minutes, nothing more or less.", durationText] delegate:nil cancelButtonTitle:@"Dismiss" otherButtonTitles:nil] autorelease] show];
+		NSNumber *duration = [NSNumber numberWithInt:[durationText intValue] * 60];
+		if(!duration || [duration intValue] <= 300){
+			[[[UIAlertView alloc] initWithTitle:@"Auto-Lock Duration Invalud" message:[NSString stringWithFormat:@"The requested duration, %@, is invalid. Make sure your requests are just numbers of minutes, nothing more or less.", durationText] delegate:nil cancelButtonTitle:@"Dismiss" otherButtonTitles:nil] show];
 			return;
 		}
 
@@ -21,18 +21,18 @@
 		NSDictionary *finalized;
 		if(![fileManager fileExistsAtPath:LLPREFS_PATH]){
 			[fileManager createDirectoryAtPath:LLPREFS_PATH withIntermediateDirectories:YES attributes:nil error:&error];
-			NSDictionary *newPrefs = @{duration : [[duration stringValue] stringByAppendingString:@" Minutes"]};
+			NSDictionary *newPrefs = @{durationText : [durationText stringByAppendingString:@" Minutes"]};
 			finalized = newPrefs;
 		}
 
 		else{
 			NSDictionary *savedPrefs = [NSDictionary dictionaryWithContentsOfFile:LLPREFS_PLIST];
 			NSMutableDictionary *newPrefs = [[NSMutableDictionary alloc] init];
-			for(NSNumber *val in [savedPrefs allKeys])
-				if(![newPrefs objectForKey:val])
-					[newPrefs setObject:[savedPrefs objectForKey:val] forKey:val];
+			for(NSString *key in [savedPrefs allKeys])
+				if(![newPrefs objectForKey:key])
+					[newPrefs setObject:[savedPrefs objectForKey:key] forKey:key];
 			
-			[newPrefs setObject:[[duration stringValue] stringByAppendingString:@" Minutes"] forKey:duration];
+			[newPrefs setObject:[durationText stringByAppendingString:@" Minutes"] forKey:durationText];
 
 			NSArray *sortedKeys = [[newPrefs allKeys] sortedArrayUsingSelector:@selector(compare:)];
 			NSMutableArray *sortedValues = [[NSMutableArray alloc] init];
@@ -42,6 +42,7 @@
 			finalized = [NSDictionary dictionaryWithObjects:sortedValues forKeys:sortedKeys];
 		}
 
+		NSLog(@"[LongerAutoLock]: Wrote the additional specifier plist (%@) to file %@.", finalized, LLPREFS_PLIST);
 		[finalized writeToFile:LLPREFS_PLIST atomically:YES];
 		[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"LLAddSpecifier" object:nil userInfo:finalized];
 	}
@@ -56,23 +57,35 @@
 %hook PSListController
 static LLAlertViewDelegate *lldelegate;
 
--(PSListController *)initForContentSize:(CGSize)arg1{
-	PSListController *list = %orig();
-	NSLog(@"------- fff: %@", list.view);
-	//	self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd target:self action:@selector(longerautolock_promptUserForSpecifier)];
-	[[NSDistributedNotificationCenter defaultCenter] addObserver:list selector:@selector(longerautolock_addSpecifierForNotification:) name:@"LLAddSpecifier" object:nil];
-	return list;
+-(void)viewWillAppear:(BOOL)animated{
+	%orig();
+
+	if([self.navigationItem.title isEqualToString:@"Auto-Lock"]){
+		self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd target:self action:@selector(longerautolock_promptUserForSpecifier)];
+		[[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(longerautolock_addSpecifierForNotification:) name:@"LLAddSpecifier" object:nil];
+	}
+}
+
+-(void)viewWillDisappear:(BOOL)animated{
+	[[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
 }
 
 %new -(void)longerautolock_promptUserForSpecifier{
+	NSLog(@"[LongerAutoLock]: Prompting user for additional specifier creation.");
+
 	lldelegate = [[LLAlertViewDelegate alloc] init];
 	UIAlertView *llalertview = [[UIAlertView alloc] initWithTitle:@"Add Auto-Lock Duration" message:@"Enter your desired longer auto-lock duration in minutes, then tap Done" delegate:lldelegate cancelButtonTitle:@"Cancel" otherButtonTitles:@"Done", nil];
 	[llalertview setAlertViewStyle:UIAlertViewStylePlainTextInput];
     [[llalertview textFieldAtIndex:0] setPlaceholder:@"10 Minutes"];
-    [llalertview release];
+    [llalertview show];
 }
 
 %new -(void)longerautolock_addSpecifierForNotification:(NSNotification *)notification{
+
+	NSLog(@"[LongerAutoLock]: Refreshing tableView (%@) for additional specifiers (%@)", [self table], [notification userInfo]);
+	[[self table] reloadData];
+	[self reloadSpecifiers];
+/*
 	NSDictionary *addSpecifiers = [notification userInfo];
 	NSArray *specifiers = [self specifiers];
 	NSMutableArray *titles = [[NSMutableArray alloc] init];
@@ -85,8 +98,9 @@ static LLAlertViewDelegate *lldelegate;
 	PSSpecifier *example = (PSSpecifier *)specifiers[1];
 
 	[self beginUpdates];
-	for(NSNumber *val in [addSpecifiers allKeys]){
-		if(![titles containsObject:[addSpecifiers objectForKey:val]]){
+	for(NSString *key in [addSpecifiers allKeys]){
+		if(![titles containsObject:[addSpecifiers objectForKey:key]]){
+			NSNumber *val = [NSNumber numberWithInt:[key intValue]];
 			PSSpecifier *newSpecifier = [PSSpecifier preferenceSpecifierNamed:[addSpecifiers objectForKey:val] target:[example target] set:MSHookIvar<SEL>(example, "setter") get:MSHookIvar<SEL>(example, "getter") detail:[example detailControllerClass] cell:[example cellType] edit:[example editPaneClass]];
 			[newSpecifier setValues:@[val]];
 			[newSpecifier setTitleDictionary:@{val : [addSpecifiers objectForKey:val]}];
@@ -96,15 +110,10 @@ static LLAlertViewDelegate *lldelegate;
 		}
 	}
 	[self endUpdates];
+
+	NSLog(@"[LongerAutoLock]: Prompting user for additional specifier creation.");*/
 }
 
--(void)dealloc{
-	[[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
-
-	lldelegate = nil;
-	[lldelegate release];
-	%orig();
-}
 %end
 
 %hook PSListItemsController
@@ -132,12 +141,16 @@ static LLAlertViewDelegate *lldelegate;
 		[additional addObject:[items lastObject]]; */
 
 		NSDictionary *savedPrefs = [NSDictionary dictionaryWithContentsOfFile:LLPREFS_PLIST];
+
 		if(savedPrefs){
-			for(NSNumber *val in [savedPrefs allKeys]){
-				PSSpecifier *newSpecifier = [PSSpecifier preferenceSpecifierNamed:[savedPrefs objectForKey:val] target:[first target] set:MSHookIvar<SEL>(first, "setter") get:MSHookIvar<SEL>(first, "getter") detail:[first detailControllerClass] cell:[first cellType] edit:[first editPaneClass]];
+			for(NSString *key in [savedPrefs allKeys]){
+				NSNumber *val = [NSNumber numberWithInt:[key intValue]];
+				NSString *name = [savedPrefs objectForKey:key];
+
+				PSSpecifier *newSpecifier = [PSSpecifier preferenceSpecifierNamed:name target:[first target] set:MSHookIvar<SEL>(first, "setter") get:MSHookIvar<SEL>(first, "getter") detail:[first detailControllerClass] cell:[first cellType] edit:[first editPaneClass]];
 				[newSpecifier setValues:@[val]];
-				[newSpecifier setTitleDictionary:@{val : [savedPrefs objectForKey:val]}];
-				[newSpecifier setShortTitleDictionary:@{val : [savedPrefs objectForKey:val]}];
+				[newSpecifier setTitleDictionary:@{val : name}];
+				[newSpecifier setShortTitleDictionary:@{val : name}];
 				[newSpecifier setButtonAction:[first buttonAction]];
 				[additional addObject:newSpecifier];
 			}	
@@ -153,22 +166,3 @@ static LLAlertViewDelegate *lldelegate;
 }
 
 %end
-
-/*
-
-Original -itemsFromParent array:
-	0: "G:  0x178365400",
-   
-    1: "1 Minute        ID:1 Minute 0x178365100        target:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>",
-
-    2: "2 Minutes        ID:2 Minutes 0x1783654c0        target:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>",
-	  
-	3: "3 Minutes        ID:3 Minutes 0x178365580        target:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>",
-	
-	4: "4 Minutes        ID:4 Minutes 0x178365640        target:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>",
-	
-	5: "5 Minutes        ID:5 Minutes 0x178365700        target:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>",
-	
-	6: "Never        ID:Never 0x1783657c0        target:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>"
-
-*/

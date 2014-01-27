@@ -7,6 +7,7 @@ TWEAK_NAME = LongerAutoLock
 LongerAutoLock_OBJC_FILES = LongerAutoLock.xm
 LongerAutoLock_FRAMEWORKS = UIKit
 LongerAutoLock_PRIVATE_FRAMEWORKS = Preferences
+LongerAutoLock_CFLAGS = -fobjc-arc
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 include $(THEOS_MAKE_PATH)/aggregate.mk
