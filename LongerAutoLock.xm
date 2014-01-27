@@ -21,7 +21,7 @@
 		NSDictionary *finalized;
 		if(![fileManager fileExistsAtPath:LLPREFS_PATH]){
 			[fileManager createDirectoryAtPath:LLPREFS_PATH withIntermediateDirectories:YES attributes:nil error:&error];
-			NSDictionary *newPrefs = @{durationText : [durationText stringByAppendingString:@" Minutes"]};
+			NSDictionary *newPrefs = @{[duration stringValue] : [durationText stringByAppendingString:@" Minutes"]};
 			finalized = newPrefs;
 		}
 
@@ -32,7 +32,7 @@
 				if(![newPrefs objectForKey:key])
 					[newPrefs setObject:[savedPrefs objectForKey:key] forKey:key];
 			
-			[newPrefs setObject:[durationText stringByAppendingString:@" Minutes"] forKey:durationText];
+			[newPrefs setObject:[durationText stringByAppendingString:@" Minutes"] forKey:[duration stringValue]];
 
 			NSArray *sortedKeys = [[newPrefs allKeys] sortedArrayUsingSelector:@selector(compare:)];
 			NSMutableArray *sortedValues = [[NSMutableArray alloc] init];
@@ -74,44 +74,15 @@ static LLAlertViewDelegate *lldelegate;
 	NSLog(@"[LongerAutoLock]: Prompting user for additional specifier creation.");
 
 	lldelegate = [[LLAlertViewDelegate alloc] init];
-	UIAlertView *llalertview = [[UIAlertView alloc] initWithTitle:@"Add Auto-Lock Duration" message:@"Enter your desired longer auto-lock duration in minutes, then tap Done" delegate:lldelegate cancelButtonTitle:@"Cancel" otherButtonTitles:@"Done", nil];
+	UIAlertView *llalertview = [[UIAlertView alloc] initWithTitle:@"Add Auto-Lock Duration" message:@"Enter your desired longer auto-lock duration in minutes, then tap Done." delegate:lldelegate cancelButtonTitle:@"Cancel" otherButtonTitles:@"Done", nil];
 	[llalertview setAlertViewStyle:UIAlertViewStylePlainTextInput];
-    [[llalertview textFieldAtIndex:0] setPlaceholder:@"10 Minutes"];
+    [[llalertview textFieldAtIndex:0] setPlaceholder:@"10"];
     [llalertview show];
 }
 
 %new -(void)longerautolock_addSpecifierForNotification:(NSNotification *)notification{
-
 	NSLog(@"[LongerAutoLock]: Refreshing tableView (%@) for additional specifiers (%@)", [self table], [notification userInfo]);
-	[[self table] reloadData];
 	[self reloadSpecifiers];
-/*
-	NSDictionary *addSpecifiers = [notification userInfo];
-	NSArray *specifiers = [self specifiers];
-	NSMutableArray *titles = [[NSMutableArray alloc] init];
-	for(PSSpecifier *s in specifiers)
-		[titles addObject:s.name];
-
-	if(specifiers.count < 2)
-		return;
-
-	PSSpecifier *example = (PSSpecifier *)specifiers[1];
-
-	[self beginUpdates];
-	for(NSString *key in [addSpecifiers allKeys]){
-		if(![titles containsObject:[addSpecifiers objectForKey:key]]){
-			NSNumber *val = [NSNumber numberWithInt:[key intValue]];
-			PSSpecifier *newSpecifier = [PSSpecifier preferenceSpecifierNamed:[addSpecifiers objectForKey:val] target:[example target] set:MSHookIvar<SEL>(example, "setter") get:MSHookIvar<SEL>(example, "getter") detail:[example detailControllerClass] cell:[example cellType] edit:[example editPaneClass]];
-			[newSpecifier setValues:@[val]];
-			[newSpecifier setTitleDictionary:@{val : [addSpecifiers objectForKey:val]}];
-			[newSpecifier setShortTitleDictionary:@{val : [addSpecifiers objectForKey:val]}];
-			[newSpecifier setButtonAction:[example buttonAction]];
-			[self addSpecifier:newSpecifier animated:YES];
-		}
-	}
-	[self endUpdates];
-
-	NSLog(@"[LongerAutoLock]: Prompting user for additional specifier creation.");*/
 }
 
 %end
@@ -130,20 +101,11 @@ static LLAlertViewDelegate *lldelegate;
 		for(int i = 0; i < items.count - 1; i++)
 			[additional addObject:items[i]];
 
-		// Has to be greater than 1 Minute (value <60 doesn't seem to apply)
-		/* PSSpecifier *tenMinutes = [PSSpecifier preferenceSpecifierNamed:@"10 Minutes" target:[first target] set:MSHookIvar<SEL>(first, "setter") get:MSHookIvar<SEL>(first, "getter") detail:[first detailControllerClass] cell:[first cellType] edit:[first editPaneClass]];
-		[tenMinutes setValues:@[@600]];
-		[tenMinutes setTitleDictionary:@{@600 : @"10 Minutes"}];
-		[tenMinutes setShortTitleDictionary:@{@600 : @"10 Minutes"}];
-		[tenMinutes setButtonAction:[first buttonAction]];
-		[additional addObject:tenMinutes];
-
-		[additional addObject:[items lastObject]]; */
-
 		NSDictionary *savedPrefs = [NSDictionary dictionaryWithContentsOfFile:LLPREFS_PLIST];
 
 		if(savedPrefs){
-			for(NSString *key in [savedPrefs allKeys]){
+			for(int i = [savedPrefs allKeys].count - 1; i >= 0; i--){
+				NSString *key = [[savedPrefs allKeys] objectAtIndex:i];
 				NSNumber *val = [NSNumber numberWithInt:[key intValue]];
 				NSString *name = [savedPrefs objectForKey:key];
 
@@ -151,7 +113,8 @@ static LLAlertViewDelegate *lldelegate;
 				[newSpecifier setValues:@[val]];
 				[newSpecifier setTitleDictionary:@{val : name}];
 				[newSpecifier setShortTitleDictionary:@{val : name}];
-				[newSpecifier setButtonAction:[first buttonAction]];
+
+				NSLog(@"[LongerAutoLock] Inserting additional specifier with name:%@ and value:%@, raw:%@", name, val, newSpecifier);
 				[additional addObject:newSpecifier];
 			}	
 		}
