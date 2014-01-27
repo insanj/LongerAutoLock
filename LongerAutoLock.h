@@ -29,6 +29,7 @@
 @end
 
 @interface PSListItemsController : PSListController
+- (id)tableView:(id)arg1 cellForRowAtIndexPath:(id)arg2;
 -(id)itemsFromDataSource;
 -(id)itemsFromParent;
 @end
@@ -72,6 +73,14 @@
 -(NSDictionary *)shortTitleDictionary;
 -(SEL)buttonAction;
 @end
+
+@interface PSTableCell : UITableViewCell
+@property(retain) PSSpecifier *specifier;
+@property(retain) UILongPressGestureRecognizer *longTapRecognizer;
+
+-(id)initWithStyle:(int)arg1 reuseIdentifier:(id)arg2 specifier:(id)arg3;
+@end
+
 
 /*
 
