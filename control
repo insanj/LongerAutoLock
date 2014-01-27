@@ -1,10 +1,10 @@
-Package: com.insanj.ccstrobe
-Name: CCStrobe
+Package: com.insanj.longerautolock
+Name: LongerAutoLock
 Pre-Depends: firmware (>= 7.0)
 Depends: mobilesubstrate
 Version: 0.1
 Architecture: iphoneos-arm
-Description: Strobe by holding down the Torch launch (because the other didn't work for me).
+Description: More Auto Lock options.
 Maintainer: Julian Weiss <me@insanj.com>
 Author: Julian (insanj) Weiss
 Section: Tweaks

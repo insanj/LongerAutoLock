@@ -74,19 +74,22 @@
 	
 	if(inAutoLock){
 		NSMutableArray *additional = [[NSMutableArray alloc] init];
-		for(int i = 0; i < items.count - 1; i++)
+		[additional addObject:[items firstObject]];
+
+		for(int i = 1; i < items.count - 1; i++)
 			[additional addObject:items[i]];
 
-		PSSpecifier *ten = [PSSpecifier preferenceSpecifierNamed:@"10 Minutes" target:[first target] set:MSHookIvar<SEL>(first, "setter") get:MSHookIvar<SEL>(first, "getter") detail:[first detailControllerClass] cell:[first cellType] edit:[first editPaneClass]];
-		[ten setValues:@[@600]];
-		[ten setTitleDictionary:@{@60 : @"10 Minutes"}];
-		[ten setShortTitleDictionary:@{@60 : @"10 Minutes"}];
-		[additional addObject:ten];
+		// Has to be greater than 1 Minute (value <60 doesn't seem to apply)
+		PSSpecifier *tenMinutes = [PSSpecifier preferenceSpecifierNamed:@"10 Minutes" target:[first target] set:MSHookIvar<SEL>(first, "setter") get:MSHookIvar<SEL>(first, "getter") detail:[first detailControllerClass] cell:[first cellType] edit:[first editPaneClass]];
+		[tenMinutes setValues:@[@600]];
+		[tenMinutes setTitleDictionary:@{@600 : @"10 Minutes"}];
+		[tenMinutes setShortTitleDictionary:@{@600 : @"10 Minutes"}];
+		[additional addObject:tenMinutes];
 
 		[additional addObject:[items lastObject]];
 		items = [[NSArray alloc] initWithArray:additional];
 		
-		NSLog(@"[LongerAutoLock] Inserted additional specifier (%@) to create: %@", ten, items);
+		NSLog(@"[LongerAutoLock] Inserted additional specifiers (%@, %@) to create: %@", tenSeconds, tenMinutes, items);
 	}
 
 	return items;
@@ -100,15 +103,16 @@
 Original -itemsFromParent array:
 	0: "G:  0x178365400",
    
-    1: "1 Minute\t\tID:1 Minute 0x178365100\t\ttarget:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>",
+    1: "1 Minute        ID:1 Minute 0x178365100        target:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>",
 
-    2: "2 Minutes\t\tID:2 Minutes 0x1783654c0\t\ttarget:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>",
+    2: "2 Minutes        ID:2 Minutes 0x1783654c0        target:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>",
 	  
-	3: "3 Minutes\t\tID:3 Minutes 0x178365580\t\ttarget:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>",
+	3: "3 Minutes        ID:3 Minutes 0x178365580        target:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>",
 	
-	4: "4 Minutes\t\tID:4 Minutes 0x178365640\t\ttarget:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>",
+	4: "4 Minutes        ID:4 Minutes 0x178365640        target:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>",
 	
-	5: "5 Minutes\t\tID:5 Minutes 0x178365700\t\ttarget:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>",
+	5: "5 Minutes        ID:5 Minutes 0x178365700        target:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>",
 	
-	6: "Never\t\tID:Never 0x1783657c0\t\ttarget:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>"
+	6: "Never        ID:Never 0x1783657c0        target:<GeneralController 0x147d40570: navItem <UINavigationItem: 0x1781c9ba0>, view <UITableView: 0x148075c00; frame = (0 0; 320 568); clipsToBounds = YES; autoresize = W+H; gestureRecognizers = <NSArray: 0x178242430>; layer = <CALayer: 0x178237320>; contentOffset: {0, 212}>>"
+
 */
