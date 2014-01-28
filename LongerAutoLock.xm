@@ -82,7 +82,7 @@ static LLAlertViewDelegate *lldelegate;
 	lldelegate = [[LLAlertViewDelegate alloc] init];
 	UIAlertView *llalertview = [[UIAlertView alloc] initWithTitle:@"Modify Auto-Lock Options" message:@"Enter your desired longer auto-lock duration in minutes to add it, or an already-existing duration to remove it, then tap Done." delegate:lldelegate cancelButtonTitle:@"Cancel" otherButtonTitles:@"Done", nil];
 	[llalertview setAlertViewStyle:UIAlertViewStylePlainTextInput];
-    [[llalertview textFieldAtIndex:0] setPlaceholder:@"e.g. 6, 8, 10"];
+    [[llalertview textFieldAtIndex:0] setPlaceholder:@"e.g. 10, 15"];
     [[llalertview textFieldAtIndex:0] setKeyboardType:UIKeyboardTypeNumberPad];
 
     for(int i = 0; i < [[self table] numberOfRowsInSection:0]; i++){
@@ -175,7 +175,6 @@ static BOOL lladdedHeavyLine;
 	NSArray *items = %orig();
 	PSSpecifier *first = items.count > 0?items[1]:nil;
 	BOOL inAutoLock = first && [first.name isEqualToString:@"1 Minute"];
-	NSLog(@"--- setter:%s getter:%s", sel_getName(MSHookIvar<SEL>(first, "setter")), sel_getName(MSHookIvar<SEL>(first, "getter")));
 
 	NSLog(@"[LongerAutoLock] Received call to -itemsFromParent, appears we %@ in Auto-Lock pane (%@)", NSStringFromBool(inAutoLock), self);
 	
