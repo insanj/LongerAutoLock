@@ -42,8 +42,8 @@
 
 			NSArray *sortedKeys = [[newPrefs allKeys] sortedArrayUsingSelector:@selector(compare:)];
 			NSMutableArray *sortedValues = [[NSMutableArray alloc] init];
-			for(NSNumber *key in sortedKeys)
-			    [sortedValues addObject:[newPrefs objectForKey:key]];
+			for(int i = 0; i < sortedKeys.count; i++)
+			    [sortedValues addObject:[newPrefs objectForKey:sortedKeys[i]]];
 
 			NSMutableArray *sortedStringKeys = [[NSMutableArray alloc] init];
 			for(int i = 0; i < sortedKeys.count; i++)
@@ -54,9 +54,9 @@
 
 		NSLog(@"[LongerAutoLock]: Wrote the augmented specifier plist (%@) to file %@.", finalized, LLPREFS_PLIST);
 		[finalized writeToFile:LLPREFS_PLIST atomically:YES];
-		[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"LLAddSpecifier" object:nil userInfo:finalized];
+		[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"LLAddSpecifier" object:nil userInfo:@{@"LLTitle" : [durationText stringByAppendingString:@" Minutes"]}];
 
-		if(isDuplicate)
+		if(isDuplicate && alertView.tag == [durationText intValue])
 			[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"LLReselectSpecifier" object:nil];
 	}
 }
@@ -93,13 +93,27 @@ static LLAlertViewDelegate *lldelegate;
 	[llalertview setAlertViewStyle:UIAlertViewStylePlainTextInput];
     [[llalertview textFieldAtIndex:0] setPlaceholder:@"e.g. 6, 8, 10"];
     [[llalertview textFieldAtIndex:0] setKeyboardType:UIKeyboardTypeNumberPad];
-    llalertview.tag = 0;
+
+    for(int i = 0; i < [[self table] numberOfRowsInSection:0]; i++){
+    	PSTableCell *cell = (PSTableCell *)[[self table] cellForRowAtIndexPath:[NSIndexPath indexPathForRow:i inSection:0]];
+    	if(cell.accessoryType == UITableViewCellAccessoryCheckmark)
+    		llalertview.tag = [[[cell title] componentsSeparatedByString:@" "][0] intValue];
+    }
+
     [llalertview show];
 }
 
 %new -(void)longerautolock_addSpecifierForNotification:(NSNotification *)notification{
-	NSLog(@"[LongerAutoLock]: Refreshing tableView (%@) for additional specifiers (%@)", [self table], [notification userInfo]);
+	NSLog(@"[LongerAutoLock]: Refreshing tableView (%@) for given specifier title: %@", [self table], [notification userInfo][@"LLTitle"]);
 	[self reloadSpecifiers];
+
+   for(int i = 0; i < [[self table] numberOfRowsInSection:0]; i++){
+    	PSTableCell *cell = (PSTableCell *)[[self table] cellForRowAtIndexPath:[NSIndexPath indexPathForRow:i inSection:0]];
+    	if([[cell title] isEqualToString:[notification userInfo][@"LLTitle"]]){
+			[self tableView:[self table] didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:i inSection:0]];
+			return;
+    	}
+   }
 }
 
 %new -(void)longerautolock_reselectSpecifier{
