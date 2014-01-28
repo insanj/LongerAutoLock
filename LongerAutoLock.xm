@@ -1,6 +1,7 @@
 #import "LongerAutoLock.h"
 #define LLPREFS_PATH [NSHomeDirectory() stringByAppendingPathComponent:@"/Library/Application Support/LongerAutoLock"]
 #define LLPREFS_PLIST [NSHomeDirectory() stringByAppendingPathComponent:@"/Library/Application Support/LongerAutoLock/Preferences.plist"]
+#define LLDEFAULT_TITLES @[@"1 Minute", @"2 Minutes", @"3 Minutes", @"4 Minutes", @"5 Minutes", @"Never"]
 
 @interface LLAlertViewDelegate : NSObject <UIAlertViewDelegate>
 -(void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex;
@@ -8,44 +9,59 @@
 
 @implementation LLAlertViewDelegate
 -(void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex{
+	NSLog(@"---- %i", (int)alertView.tag);
 	if(buttonIndex != 0){
-		NSString *durationText = [alertView textFieldAtIndex:0].text;
-		NSNumber *duration = [NSNumber numberWithInt:[durationText intValue] * 60];
-		if(!duration || [duration intValue] <= 300){
-			[[[UIAlertView alloc] initWithTitle:@"Auto-Lock Duration Invalud" message:[NSString stringWithFormat:@"The requested duration, %@, is invalid. Make sure your requests are just numbers of minutes, nothing more or less.", durationText] delegate:nil cancelButtonTitle:@"Dismiss" otherButtonTitles:nil] show];
-			return;
-		}
+		if(alertView.tag == 0){
+			NSString *durationText = [alertView textFieldAtIndex:0].text;
+			NSNumber *duration = [NSNumber numberWithInt:[durationText intValue] * 60];
+			if(!duration || [duration intValue] <= 300){
+				[[[UIAlertView alloc] initWithTitle:@"Auto-Lock Duration Invalud" message:[NSString stringWithFormat:@"The requested duration, %@, is invalid. Make sure your requests are just numbers of minutes, nothing more or less.", durationText] delegate:nil cancelButtonTitle:@"Dismiss" otherButtonTitles:nil] show];
+				return;
+			}
 
-		NSError *error;
-		NSFileManager *fileManager = [NSFileManager defaultManager];
-		NSDictionary *finalized;
-		if(![fileManager fileExistsAtPath:LLPREFS_PATH]){
-			[fileManager createDirectoryAtPath:LLPREFS_PATH withIntermediateDirectories:YES attributes:nil error:&error];
-			NSDictionary *newPrefs = @{[duration stringValue] : [durationText stringByAppendingString:@" Minutes"]};
-			finalized = newPrefs;
+			NSError *error;
+			NSFileManager *fileManager = [NSFileManager defaultManager];
+			NSDictionary *finalized;
+			if(![fileManager fileExistsAtPath:LLPREFS_PATH]){
+				[fileManager createDirectoryAtPath:LLPREFS_PATH withIntermediateDirectories:YES attributes:nil error:&error];
+				NSDictionary *newPrefs = @{[duration stringValue] : [durationText stringByAppendingString:@" Minutes"]};
+				finalized = newPrefs;
+			}
+
+			else{
+				NSDictionary *savedPrefs = [NSDictionary dictionaryWithContentsOfFile:LLPREFS_PLIST];
+				NSMutableDictionary *newPrefs = [[NSMutableDictionary alloc] init];
+				for(NSString *key in [savedPrefs allKeys])
+					if(![newPrefs objectForKey:key])
+						[newPrefs setObject:[savedPrefs objectForKey:key] forKey:key];
+				
+				[newPrefs setObject:[durationText stringByAppendingString:@" Minutes"] forKey:[duration stringValue]];
+
+				NSArray *sortedKeys = [[newPrefs allKeys] sortedArrayUsingSelector:@selector(compare:)];
+				NSMutableArray *sortedValues = [[NSMutableArray alloc] init];
+				for(NSString *key in sortedKeys)
+				    [sortedValues addObject:[newPrefs objectForKey:key]];
+
+				finalized = [NSDictionary dictionaryWithObjects:sortedValues forKeys:sortedKeys];
+			}
+
+			NSLog(@"[LongerAutoLock]: Wrote the additional specifier plist (%@) to file %@.", finalized, LLPREFS_PLIST);
+			[finalized writeToFile:LLPREFS_PLIST atomically:YES];
+			[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"LLAddSpecifier" object:nil userInfo:finalized];
 		}
 
 		else{
 			NSDictionary *savedPrefs = [NSDictionary dictionaryWithContentsOfFile:LLPREFS_PLIST];
 			NSMutableDictionary *newPrefs = [[NSMutableDictionary alloc] init];
 			for(NSString *key in [savedPrefs allKeys])
-				if(![newPrefs objectForKey:key])
+				if(![[newPrefs objectForKey:key] isEqualToString:alertView.title])
 					[newPrefs setObject:[savedPrefs objectForKey:key] forKey:key];
-			
-			[newPrefs setObject:[durationText stringByAppendingString:@" Minutes"] forKey:[duration stringValue]];
 
-			NSArray *sortedKeys = [[newPrefs allKeys] sortedArrayUsingSelector:@selector(compare:)];
-			NSMutableArray *sortedValues = [[NSMutableArray alloc] init];
-			for(NSString *key in sortedKeys)
-			    [sortedValues addObject:[newPrefs objectForKey:key]];
-
-			finalized = [NSDictionary dictionaryWithObjects:sortedValues forKeys:sortedKeys];
+			NSLog(@"[LongerAutoLock]: Wrote the modified specifier plist (%@) to file %@.", newPrefs, LLPREFS_PLIST);
+			[newPrefs writeToFile:LLPREFS_PLIST atomically:YES];
+			[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"LLAddSpecifier" object:nil userInfo:newPrefs];
 		}
-
-		NSLog(@"[LongerAutoLock]: Wrote the additional specifier plist (%@) to file %@.", finalized, LLPREFS_PLIST);
-		[finalized writeToFile:LLPREFS_PLIST atomically:YES];
-		[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"LLAddSpecifier" object:nil userInfo:finalized];
-	}
+	}//end buttonIndex
 }
 @end
 
@@ -76,7 +92,9 @@ static LLAlertViewDelegate *lldelegate;
 	lldelegate = [[LLAlertViewDelegate alloc] init];
 	UIAlertView *llalertview = [[UIAlertView alloc] initWithTitle:@"Add Auto-Lock Duration" message:@"Enter your desired longer auto-lock duration in minutes, then tap Done." delegate:lldelegate cancelButtonTitle:@"Cancel" otherButtonTitles:@"Done", nil];
 	[llalertview setAlertViewStyle:UIAlertViewStylePlainTextInput];
-    [[llalertview textFieldAtIndex:0] setPlaceholder:@"10"];
+    [[llalertview textFieldAtIndex:0] setPlaceholder:@"e.g. 6, 8, 10"];
+    [[llalertview textFieldAtIndex:0] setKeyboardType:UIKeyboardTypeNumberPad];
+    llalertview.tag = 0;
     [llalertview show];
 }
 
@@ -89,15 +107,37 @@ static LLAlertViewDelegate *lldelegate;
 
 @interface PSListItemsController (LongerAutoLock)
 -(void)longerautolock_addFooterToView;
+-(void)longerautolock_recognizeLongPress:(UILongPressGestureRecognizer *)arg1;
 @end
 
-
 %hook PSListItemsController
-static UILabel *footerLabel;
+static UILabel *llfooterLabel;
+static LLAlertViewDelegate *lldeleteDelegate;
+static UILongPressGestureRecognizer *lllongPress;
 
 -(void)viewWillAppear:(BOOL)arg1{
 	%orig();
 	[self longerautolock_addFooterToView];
+	if(!lllongPress)
+		lllongPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(longerautolock_recognizeLongPress:)];
+}
+
+-(id)tableView:(id)arg1 cellForRowAtIndexPath:(id)arg2{
+	PSTableCell *cell = %orig();
+	[cell addGestureRecognizer:lllongPress];
+	return cell;
+}
+
+%new -(void)longerautolock_recognizeLongPress:(UILongPressGestureRecognizer *)arg1{
+	PSTableCell *cell = (PSTableCell *)arg1.view;
+
+	NSString *name = [cell title];
+	if(![LLDEFAULT_TITLES containsObject:name] && !lldeleteDelegate){
+		lldeleteDelegate = [[LLAlertViewDelegate alloc] init];
+		UIAlertView *deleteAV = [[UIAlertView alloc] initWithTitle:name message:@"Are you sure you want to remove this custom Auto-Lock time from your LongerAutoLock list?" delegate:lldeleteDelegate cancelButtonTitle:@"No" otherButtonTitles:@"Yes", nil];
+	    deleteAV.tag = 1;
+	    [deleteAV show];
+	}
 }
 
 -(void)reloadSpecifiers{
@@ -106,22 +146,22 @@ static UILabel *footerLabel;
 }
 
 %new -(void)longerautolock_addFooterToView{
-	if(footerLabel){
-		[footerLabel removeFromSuperview];
-		footerLabel = nil;
+	if(llfooterLabel){
+		[llfooterLabel removeFromSuperview];
+		llfooterLabel = nil;
 	}
 
-	NSString *footerText = @"Shorter Auto-Lock times are more secure. Using custom LongerAutoLock times forfeit possible privacy for convenience. Please use responsibly.";
-	CGSize footerSize = [footerText boundingRectWithSize:CGSizeMake([UIApplication sharedApplication].keyWindow.frame.size.width - 10.0, CGFLOAT_MAX) options:NSStringDrawingUsesLineFragmentOrigin attributes:@{NSFontAttributeName : [UIFont systemFontOfSize:12.0]} context:nil].size;
+	NSString *footerText = @"Shorter Auto-Lock times are more secure. Using a custom LongerAutoLock time forfeits possible privacy and battery life for convenience. Please use responsibly.";
+	CGSize footerSize = [footerText boundingRectWithSize:CGSizeMake([UIApplication sharedApplication].keyWindow.frame.size.width - 40.0, CGFLOAT_MAX) options:NSStringDrawingUsesLineFragmentOrigin attributes:@{NSFontAttributeName : [UIFont systemFontOfSize:13.0]} context:nil].size;
 		
-    footerLabel = [[UILabel alloc] initWithFrame:CGRectMake(5.0, [[self table] rectForSection:0].size.height + 22.0, footerSize.width, footerSize.height)];
-	footerLabel.numberOfLines = 0;
-	[footerLabel setUserInteractionEnabled:NO];
-	[footerLabel setBackgroundColor:[UIColor clearColor]];
-	[footerLabel setText:footerText];
-	[footerLabel setFont:[UIFont systemFontOfSize:12.0]];
-	[footerLabel setTextColor:[UIColor darkGrayColor]];
-	[self.view addSubview:footerLabel];
+    llfooterLabel = [[UILabel alloc] initWithFrame:CGRectMake(10.0, [[self table] rectForSection:0].size.height + 25.0, footerSize.width, footerSize.height)];
+	llfooterLabel.numberOfLines = 0;
+	[llfooterLabel setUserInteractionEnabled:NO];
+	[llfooterLabel setBackgroundColor:[UIColor clearColor]];
+	[llfooterLabel setText:footerText];
+	[llfooterLabel setFont:[UIFont systemFontOfSize:13.0]];
+	[llfooterLabel setTextColor:[UIColor darkGrayColor]];
+	[self.view addSubview:llfooterLabel];
 }	
 
 -(id)itemsFromParent{

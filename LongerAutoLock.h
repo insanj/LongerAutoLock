@@ -29,7 +29,7 @@
 @end
 
 @interface PSListItemsController : PSListController
-- (id)tableView:(id)arg1 cellForRowAtIndexPath:(id)arg2;
+-(id)tableView:(id)arg1 cellForRowAtIndexPath:(id)arg2;
 -(id)itemsFromDataSource;
 -(id)itemsFromParent;
 @end
@@ -79,6 +79,9 @@
 @property(retain) UILongPressGestureRecognizer *longTapRecognizer;
 
 -(id)initWithStyle:(int)arg1 reuseIdentifier:(id)arg2 specifier:(id)arg3;
+-(void)setLongTapRecognizer:(UILongPressGestureRecognizer *)arg1;
+-(void)setTitle:(NSString *)arg1;
+-(NSString *)title;
 @end
 
 
