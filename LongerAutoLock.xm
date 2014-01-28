@@ -1,4 +1,5 @@
 #import "LongerAutoLock.h"
+#define NSStringFromBool(a) a?@"are":@"aren't"
 #define LLPREFS_PATH [NSHomeDirectory() stringByAppendingPathComponent:@"/Library/Application Support/LongerAutoLock"]
 #define LLPREFS_PLIST [NSHomeDirectory() stringByAppendingPathComponent:@"/Library/Application Support/LongerAutoLock/Preferences.plist"]
 #define LLDEFAULT_TITLES @[@"1 Minute", @"2 Minutes", @"3 Minutes", @"4 Minutes", @"5 Minutes", @"Never"]
@@ -9,65 +10,62 @@
 
 @implementation LLAlertViewDelegate
 -(void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex{
-	NSLog(@"---- %i", (int)alertView.tag);
 	if(buttonIndex != 0){
-		if(alertView.tag == 0){
-			NSString *durationText = [alertView textFieldAtIndex:0].text;
-			NSNumber *duration = [NSNumber numberWithInt:[durationText intValue] * 60];
-			if(!duration || [duration intValue] <= 300){
-				[[[UIAlertView alloc] initWithTitle:@"Auto-Lock Duration Invalud" message:[NSString stringWithFormat:@"The requested duration, %@, is invalid. Make sure your requests are just numbers of minutes, nothing more or less.", durationText] delegate:nil cancelButtonTitle:@"Dismiss" otherButtonTitles:nil] show];
-				return;
-			}
+		NSString *durationText = [alertView textFieldAtIndex:0].text;
+		NSNumber *duration = [NSNumber numberWithInt:[durationText intValue] * 60];
+		if(!duration || [duration intValue] <= 300){
+			[[[UIAlertView alloc] initWithTitle:@"Auto-Lock Duration Invalud" message:[NSString stringWithFormat:@"The requested duration, %@, is invalid. Make sure your requests are new, minute-long durations, nothing more or less.", durationText] delegate:nil cancelButtonTitle:@"Dismiss" otherButtonTitles:nil] show];
+			return;
+		}
 
-			NSError *error;
-			NSFileManager *fileManager = [NSFileManager defaultManager];
-			NSDictionary *finalized;
-			if(![fileManager fileExistsAtPath:LLPREFS_PATH]){
-				[fileManager createDirectoryAtPath:LLPREFS_PATH withIntermediateDirectories:YES attributes:nil error:&error];
-				NSDictionary *newPrefs = @{[duration stringValue] : [durationText stringByAppendingString:@" Minutes"]};
-				finalized = newPrefs;
-			}
-
-			else{
-				NSDictionary *savedPrefs = [NSDictionary dictionaryWithContentsOfFile:LLPREFS_PLIST];
-				NSMutableDictionary *newPrefs = [[NSMutableDictionary alloc] init];
-				for(NSString *key in [savedPrefs allKeys])
-					if(![newPrefs objectForKey:key])
-						[newPrefs setObject:[savedPrefs objectForKey:key] forKey:key];
-				
-				[newPrefs setObject:[durationText stringByAppendingString:@" Minutes"] forKey:[duration stringValue]];
-
-				NSArray *sortedKeys = [[newPrefs allKeys] sortedArrayUsingSelector:@selector(compare:)];
-				NSMutableArray *sortedValues = [[NSMutableArray alloc] init];
-				for(NSString *key in sortedKeys)
-				    [sortedValues addObject:[newPrefs objectForKey:key]];
-
-				finalized = [NSDictionary dictionaryWithObjects:sortedValues forKeys:sortedKeys];
-			}
-
-			NSLog(@"[LongerAutoLock]: Wrote the additional specifier plist (%@) to file %@.", finalized, LLPREFS_PLIST);
-			[finalized writeToFile:LLPREFS_PLIST atomically:YES];
-			[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"LLAddSpecifier" object:nil userInfo:finalized];
+		NSError *error;
+		NSFileManager *fileManager = [NSFileManager defaultManager];
+		NSDictionary *finalized;
+		BOOL isDuplicate = NO;
+		if(![fileManager fileExistsAtPath:LLPREFS_PATH]){
+			[fileManager createDirectoryAtPath:LLPREFS_PATH withIntermediateDirectories:YES attributes:nil error:&error];
+			NSDictionary *newPrefs = @{[duration stringValue] : [durationText stringByAppendingString:@" Minutes"]};
+			finalized = newPrefs;
 		}
 
 		else{
 			NSDictionary *savedPrefs = [NSDictionary dictionaryWithContentsOfFile:LLPREFS_PLIST];
+			isDuplicate = [[savedPrefs allKeys] containsObject:[duration stringValue]];
 			NSMutableDictionary *newPrefs = [[NSMutableDictionary alloc] init];
-			for(NSString *key in [savedPrefs allKeys])
-				if(![[newPrefs objectForKey:key] isEqualToString:alertView.title])
-					[newPrefs setObject:[savedPrefs objectForKey:key] forKey:key];
 
-			NSLog(@"[LongerAutoLock]: Wrote the modified specifier plist (%@) to file %@.", newPrefs, LLPREFS_PLIST);
-			[newPrefs writeToFile:LLPREFS_PLIST atomically:YES];
-			[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"LLAddSpecifier" object:nil userInfo:newPrefs];
+			for(NSString *key in [savedPrefs allKeys])
+				if(![key isEqualToString:[duration stringValue]] && ![newPrefs objectForKey:key])
+					[newPrefs setObject:[savedPrefs objectForKey:key] forKey:[NSNumber numberWithInt:[key intValue]]];
+			
+			if(!isDuplicate)
+				[newPrefs setObject:[durationText stringByAppendingString:@" Minutes"] forKey:duration];
+
+			NSArray *sortedKeys = [[newPrefs allKeys] sortedArrayUsingSelector:@selector(compare:)];
+			NSMutableArray *sortedValues = [[NSMutableArray alloc] init];
+			for(NSNumber *key in sortedKeys)
+			    [sortedValues addObject:[newPrefs objectForKey:key]];
+
+			NSMutableArray *sortedStringKeys = [[NSMutableArray alloc] init];
+			for(int i = 0; i < sortedKeys.count; i++)
+				[sortedStringKeys addObject:[sortedKeys[i] stringValue]];
+
+			finalized = [NSDictionary dictionaryWithObjects:sortedValues forKeys:sortedStringKeys];
 		}
-	}//end buttonIndex
+
+		NSLog(@"[LongerAutoLock]: Wrote the augmented specifier plist (%@) to file %@.", finalized, LLPREFS_PLIST);
+		[finalized writeToFile:LLPREFS_PLIST atomically:YES];
+		[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"LLAddSpecifier" object:nil userInfo:finalized];
+
+		if(isDuplicate)
+			[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"LLReselectSpecifier" object:nil];
+	}
 }
 @end
 
 @interface PSListController (LongerAutoLock)
 -(void)longerautolock_promptUserForSpecifier;
 -(void)longerautolock_addSpecifierForNotification:(NSNotification *)notification;
+-(void)longerautolock_reselectSpecifier;
 @end
 
 %hook PSListController
@@ -77,8 +75,9 @@ static LLAlertViewDelegate *lldelegate;
 	%orig();
 
 	if([self.navigationItem.title isEqualToString:@"Auto-Lock"]){
-		self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd target:self action:@selector(longerautolock_promptUserForSpecifier)];
+		self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCompose target:self action:@selector(longerautolock_promptUserForSpecifier)];
 		[[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(longerautolock_addSpecifierForNotification:) name:@"LLAddSpecifier" object:nil];
+		[[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(longerautolock_reselectSpecifier) name:@"LLReselectSpecifier" object:nil];
 	}
 }
 
@@ -90,7 +89,7 @@ static LLAlertViewDelegate *lldelegate;
 	NSLog(@"[LongerAutoLock]: Prompting user for additional specifier creation.");
 
 	lldelegate = [[LLAlertViewDelegate alloc] init];
-	UIAlertView *llalertview = [[UIAlertView alloc] initWithTitle:@"Add Auto-Lock Duration" message:@"Enter your desired longer auto-lock duration in minutes, then tap Done." delegate:lldelegate cancelButtonTitle:@"Cancel" otherButtonTitles:@"Done", nil];
+	UIAlertView *llalertview = [[UIAlertView alloc] initWithTitle:@"Modify Auto-Lock Options" message:@"Enter your desired longer auto-lock duration in minutes to add it, or an already-existing duration to remove it, then tap Done." delegate:lldelegate cancelButtonTitle:@"Cancel" otherButtonTitles:@"Done", nil];
 	[llalertview setAlertViewStyle:UIAlertViewStylePlainTextInput];
     [[llalertview textFieldAtIndex:0] setPlaceholder:@"e.g. 6, 8, 10"];
     [[llalertview textFieldAtIndex:0] setKeyboardType:UIKeyboardTypeNumberPad];
@@ -103,46 +102,33 @@ static LLAlertViewDelegate *lldelegate;
 	[self reloadSpecifiers];
 }
 
+%new -(void)longerautolock_reselectSpecifier{
+	[self tableView:[self table] didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
+	//[self selectRowForSpecifier:[[self specifiers] objectAtIndex:1]];
+}
+
 %end
 
 @interface PSListItemsController (LongerAutoLock)
 -(void)longerautolock_addFooterToView;
--(void)longerautolock_recognizeLongPress:(UILongPressGestureRecognizer *)arg1;
 @end
 
 %hook PSListItemsController
 static UILabel *llfooterLabel;
 static LLAlertViewDelegate *lldeleteDelegate;
-static UILongPressGestureRecognizer *lllongPress;
 
 -(void)viewWillAppear:(BOOL)arg1{
 	%orig();
-	[self longerautolock_addFooterToView];
-	if(!lllongPress)
-		lllongPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(longerautolock_recognizeLongPress:)];
-}
 
--(id)tableView:(id)arg1 cellForRowAtIndexPath:(id)arg2{
-	PSTableCell *cell = %orig();
-	[cell addGestureRecognizer:lllongPress];
-	return cell;
-}
-
-%new -(void)longerautolock_recognizeLongPress:(UILongPressGestureRecognizer *)arg1{
-	PSTableCell *cell = (PSTableCell *)arg1.view;
-
-	NSString *name = [cell title];
-	if(![LLDEFAULT_TITLES containsObject:name] && !lldeleteDelegate){
-		lldeleteDelegate = [[LLAlertViewDelegate alloc] init];
-		UIAlertView *deleteAV = [[UIAlertView alloc] initWithTitle:name message:@"Are you sure you want to remove this custom Auto-Lock time from your LongerAutoLock list?" delegate:lldeleteDelegate cancelButtonTitle:@"No" otherButtonTitles:@"Yes", nil];
-	    deleteAV.tag = 1;
-	    [deleteAV show];
-	}
+	if([self.navigationItem.title isEqualToString:@"Auto-Lock"])
+		[self longerautolock_addFooterToView];
 }
 
 -(void)reloadSpecifiers{
 	%orig();
-	[self longerautolock_addFooterToView];
+
+	if([self.navigationItem.title isEqualToString:@"Auto-Lock"])
+		[self longerautolock_addFooterToView];
 }
 
 %new -(void)longerautolock_addFooterToView{
@@ -189,7 +175,7 @@ static UILongPressGestureRecognizer *lllongPress;
 				[newSpecifier setTitleDictionary:@{val : name}];
 				[newSpecifier setShortTitleDictionary:@{val : name}];
 
-				NSLog(@"[LongerAutoLock] Inserting additional specifier with name:%@ and value:%@, raw:%@", name, val, newSpecifier);
+				NSLog(@"[LongerAutoLock] Modifying requested specifier with name:%@ and value:%@, raw:%@", name, val, newSpecifier);
 				[additional addObject:newSpecifier];
 			}	
 		}
@@ -197,7 +183,7 @@ static UILongPressGestureRecognizer *lllongPress;
 		[additional addObject:[items lastObject]];
 		items = [[NSArray alloc] initWithArray:additional];
 		
-		NSLog(@"[LongerAutoLock] Inserted additional specifiers (%@) to create: %@", savedPrefs, items);
+		NSLog(@"[LongerAutoLock] Finished augmenting specifiers (%@) to create: %@", savedPrefs, items);
 	}
 
 	return items;

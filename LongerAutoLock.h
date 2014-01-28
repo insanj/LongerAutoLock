@@ -1,5 +1,4 @@
 #import <UIKit/UIKit.h>
-#define NSStringFromBool(a) a?@"are":@"aren't"
 
 @interface NSDistributedNotificationCenter : NSNotificationCenter
 @end
@@ -26,6 +25,8 @@
 -(void)endUpdates;
 -(void)beginUpdates;
 -(void)reloadSpecifiers;
+-(void)selectRowForSpecifier:(id)arg1;
+-(void)tableView:(id)arg1 didSelectRowAtIndexPath:(id)arg2;
 @end
 
 @interface PSListItemsController : PSListController
