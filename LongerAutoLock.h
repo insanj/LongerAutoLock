@@ -86,6 +86,13 @@
 @end
 
 
+@interface MCProfileConnection : NSObject
++(MCProfileConnection *)sharedConnection;
+-(void)setValue:(id)value forSetting:(id)setting;
+-(id)effectiveParametersForValueSetting:(id)setting;
+-(void)setParameters:(id)arg1 forValueSetting:(id)arg2;
+@end
+
 /*
 
 Original -itemsFromParent array:

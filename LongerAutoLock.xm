@@ -1,7 +1,8 @@
 #import "LongerAutoLock.h"
 #define NSStringFromBool(a) a?@"are":@"aren't"
 #define LLPREFS_PATH [NSHomeDirectory() stringByAppendingPathComponent:@"/Library/Application Support/LongerAutoLock"]
-#define LLPREFS_PLIST [NSHomeDirectory() stringByAppendingPathComponent:@"/Library/Application Support/LongerAutoLock/Preferences.plist"]
+#define LLPREFS_PLIST [NSHomeDirectory() stringByAppendingPathComponent:@"/Library/Application Support/LongerAutoLock/SavedDurations.plist"]
+#define LLLAST_PLIST [NSHomeDirectory() stringByAppendingPathComponent:@"/Library/Application Support/LongerAutoLock/LastSelected.plist"]
 #define LLDEFAULT_TITLES @[@"1 Minute", @"2 Minutes", @"3 Minutes", @"4 Minutes", @"5 Minutes", @"Never"]
 
 @interface LLAlertViewDelegate : NSObject <UIAlertViewDelegate>
@@ -18,12 +19,10 @@
 			return;
 		}
 
-		NSError *error;
 		NSFileManager *fileManager = [NSFileManager defaultManager];
 		NSDictionary *finalized;
 		BOOL isDuplicate = NO;
-		if(![fileManager fileExistsAtPath:LLPREFS_PATH]){
-			[fileManager createDirectoryAtPath:LLPREFS_PATH withIntermediateDirectories:YES attributes:nil error:&error];
+		if(![fileManager fileExistsAtPath:LLPREFS_PLIST]){
 			NSDictionary *newPrefs = @{[duration stringValue] : [durationText stringByAppendingString:@" Minutes"]};
 			finalized = newPrefs;
 		}
@@ -65,15 +64,38 @@ static LLAlertViewDelegate *lldelegate;
 -(void)viewWillAppear:(BOOL)animated{
 	%orig();
 
+
 	if([self.navigationItem.title isEqualToString:@"Auto-Lock"]){
 		self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCompose target:self action:@selector(longerautolock_promptUserForSpecifier)];
 		[[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(longerautolock_addSpecifierForNotification:) name:@"LLAddSpecifier" object:nil];
 		[[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(longerautolock_reselectSpecifier) name:@"LLReselectSpecifier" object:nil];
+
+		NSError *error;
+		NSFileManager *fileManager = [NSFileManager defaultManager];
+		if(![fileManager fileExistsAtPath:LLPREFS_PATH])
+			[fileManager createDirectoryAtPath:LLPREFS_PATH withIntermediateDirectories:YES attributes:nil error:&error];
+
+		else{
+			NSDictionary *savedPrefs = [NSDictionary dictionaryWithContentsOfFile:LLLAST_PLIST];
+			[self tableView:[self table] didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:[savedPrefs[@"LLLastIndexPath"] intValue] inSection:0]];
+		}
 	}
 }
 
 -(void)viewWillDisappear:(BOOL)animated{
-	[[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
+	if([self.navigationItem.title isEqualToString:@"Auto-Lock"]){
+		[[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
+
+		for(int i = 0; i < [[self table] numberOfRowsInSection:0]; i++){
+			PSTableCell *cell = (PSTableCell *)[[self table] cellForRowAtIndexPath:[NSIndexPath indexPathForRow:i inSection:0]];
+			if(cell.accessoryType == UITableViewCellAccessoryCheckmark){
+				[@{@"LLLastIndexPath" : @(i)} writeToFile:LLLAST_PLIST atomically:YES];
+				break;
+			}
+		}
+	}
+
+	%orig();
 }
 
 %new -(void)longerautolock_promptUserForSpecifier{
@@ -109,7 +131,6 @@ static LLAlertViewDelegate *lldelegate;
 
 %new -(void)longerautolock_reselectSpecifier{
 	[self tableView:[self table] didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
-	//[self selectRowForSpecifier:[[self specifiers] objectAtIndex:1]];
 }
 
 %end
