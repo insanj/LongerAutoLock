@@ -35,21 +35,12 @@
 
 			for(NSString *key in [savedPrefs allKeys])
 				if(![key isEqualToString:[duration stringValue]] && ![newPrefs objectForKey:key])
-					[newPrefs setObject:[savedPrefs objectForKey:key] forKey:[NSNumber numberWithInt:[key intValue]]];
+					[newPrefs setObject:[savedPrefs objectForKey:key] forKey:key];
 			
 			if(!isDuplicate)
-				[newPrefs setObject:[durationText stringByAppendingString:@" Minutes"] forKey:duration];
+				[newPrefs setObject:[durationText stringByAppendingString:@" Minutes"] forKey:[duration stringValue]];
 
-			NSArray *sortedKeys = [[newPrefs allKeys] sortedArrayUsingSelector:@selector(compare:)];
-			NSMutableArray *sortedValues = [[NSMutableArray alloc] init];
-			for(int i = 0; i < sortedKeys.count; i++)
-			    [sortedValues addObject:[newPrefs objectForKey:sortedKeys[i]]];
-
-			NSMutableArray *sortedStringKeys = [[NSMutableArray alloc] init];
-			for(int i = 0; i < sortedKeys.count; i++)
-				[sortedStringKeys addObject:[sortedKeys[i] stringValue]];
-
-			finalized = [NSDictionary dictionaryWithObjects:sortedValues forKeys:sortedStringKeys];
+			finalized = newPrefs;
 		}
 
 		NSLog(@"[LongerAutoLock]: Wrote the augmented specifier plist (%@) to file %@.", finalized, LLPREFS_PLIST);
@@ -130,8 +121,10 @@ static LLAlertViewDelegate *lldelegate;
 %hook PSListItemsController
 static UILabel *llfooterLabel;
 static LLAlertViewDelegate *lldeleteDelegate;
+static BOOL lladdedHeavyLine;
 
 -(void)viewWillAppear:(BOOL)arg1{
+	lladdedHeavyLine = NO;
 	%orig();
 
 	if([self.navigationItem.title isEqualToString:@"Auto-Lock"])
@@ -139,10 +132,24 @@ static LLAlertViewDelegate *lldeleteDelegate;
 }
 
 -(void)reloadSpecifiers{
+	lladdedHeavyLine = NO;
 	%orig();
 
 	if([self.navigationItem.title isEqualToString:@"Auto-Lock"])
 		[self longerautolock_addFooterToView];
+}
+
+-(id)tableView:(id)arg1 cellForRowAtIndexPath:(id)arg2{
+	PSTableCell *cell = (PSTableCell *)%orig();
+	if(![LLDEFAULT_TITLES containsObject:[cell title]] && !lladdedHeavyLine){
+		lladdedHeavyLine = YES;
+		
+		UIView *heavyLine = [[UIView alloc] initWithFrame:CGRectMake(15.0, 0.0, cell.frame.size.width - 15.0, 2.0)];
+		[heavyLine setBackgroundColor:[UIColor lightGrayColor]];
+        [cell.contentView addSubview:heavyLine];
+	}
+
+	return cell;
 }
 
 %new -(void)longerautolock_addFooterToView{
@@ -168,6 +175,7 @@ static LLAlertViewDelegate *lldeleteDelegate;
 	NSArray *items = %orig();
 	PSSpecifier *first = items.count > 0?items[1]:nil;
 	BOOL inAutoLock = first && [first.name isEqualToString:@"1 Minute"];
+	NSLog(@"--- setter:%s getter:%s", sel_getName(MSHookIvar<SEL>(first, "setter")), sel_getName(MSHookIvar<SEL>(first, "getter")));
 
 	NSLog(@"[LongerAutoLock] Received call to -itemsFromParent, appears we %@ in Auto-Lock pane (%@)", NSStringFromBool(inAutoLock), self);
 	
