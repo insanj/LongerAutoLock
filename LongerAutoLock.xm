@@ -64,6 +64,8 @@ static LLAlertViewDelegate *lldelegate;
 -(void)viewWillAppear:(BOOL)animated{
 	%orig();
 
+	if([self.navigationItem.title isEqualToString:@"General"])
+		[self reloadSpecifiers];
 
 	if([self.navigationItem.title isEqualToString:@"Auto-Lock"]){
 		self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCompose target:self action:@selector(longerautolock_promptUserForSpecifier)];
@@ -79,7 +81,17 @@ static LLAlertViewDelegate *lldelegate;
 			NSDictionary *savedPrefs = [NSDictionary dictionaryWithContentsOfFile:LLLAST_PLIST];
 			[self tableView:[self table] didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:[savedPrefs[@"LLLastIndexPath"] intValue] inSection:0]];
 		}
-	}
+	}//end if
+}
+
+-(PSTableCell *)tableView:(UITableView *)arg1 cellForRowAtIndexPath:(NSIndexPath *)arg2{
+	PSTableCell *cell = %orig();
+	if([cell.title isEqualToString:@"Auto-Lock"] && [NSDictionary dictionaryWithContentsOfFile:LLLAST_PLIST] != nil)
+		for(UIView *subview in cell.contentView.subviews)
+			if([subview isKindOfClass:[%c(UITableViewLabel) class]])
+				[(UITableViewLabel *)subview setText:[NSDictionary dictionaryWithContentsOfFile:LLLAST_PLIST][@"LLLastText"]];
+
+	return cell;
 }
 
 -(void)viewWillDisappear:(BOOL)animated{
@@ -89,11 +101,11 @@ static LLAlertViewDelegate *lldelegate;
 		for(int i = 0; i < [[self table] numberOfRowsInSection:0]; i++){
 			PSTableCell *cell = (PSTableCell *)[[self table] cellForRowAtIndexPath:[NSIndexPath indexPathForRow:i inSection:0]];
 			if(cell.accessoryType == UITableViewCellAccessoryCheckmark){
-				[@{@"LLLastIndexPath" : @(i)} writeToFile:LLLAST_PLIST atomically:YES];
+				[@{@"LLLastIndexPath" : @(i), @"LLLastText" : cell.title} writeToFile:LLLAST_PLIST atomically:YES];
 				break;
 			}
 		}
-	}
+	}//end if
 
 	%orig();
 }

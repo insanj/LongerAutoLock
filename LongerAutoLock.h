@@ -93,6 +93,10 @@
 -(void)setParameters:(id)arg1 forValueSetting:(id)arg2;
 @end
 
+@interface UITableViewLabel : UILabel
+-(void)setText:(NSString *)arg1;
+@end
+
 /*
 
 Original -itemsFromParent array:
