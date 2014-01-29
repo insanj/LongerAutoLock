@@ -1,5 +1,6 @@
 #import "LongerAutoLock.h"
 #define NSStringFromBool(a) a?@"are":@"aren't"
+
 #define LLPREFS_PATH [NSHomeDirectory() stringByAppendingPathComponent:@"/Library/Application Support/LongerAutoLock"]
 #define LLPREFS_PLIST [NSHomeDirectory() stringByAppendingPathComponent:@"/Library/Application Support/LongerAutoLock/SavedDurations.plist"]
 #define LLLAST_PLIST [NSHomeDirectory() stringByAppendingPathComponent:@"/Library/Application Support/LongerAutoLock/LastSelected.plist"]
