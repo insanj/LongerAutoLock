@@ -16,7 +16,7 @@
 		NSString *durationText = [alertView textFieldAtIndex:0].text;
 		NSNumber *duration = [NSNumber numberWithInt:[durationText intValue] * 60];
 		if(!duration || [duration intValue] <= 300){
-			[[[UIAlertView alloc] initWithTitle:@"Auto-Lock Duration Invalud" message:[NSString stringWithFormat:@"The requested duration, %@, is invalid. Make sure your requests are new, minute-long durations, nothing more or less.", durationText] delegate:nil cancelButtonTitle:@"Dismiss" otherButtonTitles:nil] show];
+			[[[UIAlertView alloc] initWithTitle:@"Auto-Lock Duration Invalid" message:[NSString stringWithFormat:@"The requested duration, %@, is invalid. Make sure your requests are new, minute-long durations, nothing more or less.", durationText] delegate:nil cancelButtonTitle:@"Dismiss" otherButtonTitles:nil] show];
 			return;
 		}
 
@@ -175,7 +175,7 @@ static BOOL lladdedHeavyLine;
 
 -(id)tableView:(id)arg1 cellForRowAtIndexPath:(id)arg2{
 	PSTableCell *cell = (PSTableCell *)%orig();
-	if(![LLDEFAULT_TITLES containsObject:[cell title]] && !lladdedHeavyLine){
+	if([self.navigationItem.title isEqualToString:@"Auto-Lock"] && ![LLDEFAULT_TITLES containsObject:[cell title]] && !lladdedHeavyLine){
 		lladdedHeavyLine = YES;
 		
 		UIView *heavyLine = [[UIView alloc] initWithFrame:CGRectMake(15.0, 0.0, cell.frame.size.width - 15.0, 2.0)];
@@ -207,12 +207,10 @@ static BOOL lladdedHeavyLine;
 
 -(id)itemsFromParent{
 	NSArray *items = %orig();
-	PSSpecifier *first = items.count > 0?items[1]:nil;
-	BOOL inAutoLock = first && [first.name isEqualToString:@"1 Minute"];
-
-	NSLog(@"[LongerAutoLock] Received call to -itemsFromParent, appears we %@ in Auto-Lock pane (%@)", NSStringFromBool(inAutoLock), self);
+	NSLog(@"[LongerAutoLock] Received call to -itemsFromParent, appears we %@ in Auto-Lock pane (%@)", NSStringFromBool([self.navigationItem.title isEqualToString:@"Auto-Lock"]), self);
 	
-	if(inAutoLock){
+	if([self.navigationItem.title isEqualToString:@"Auto-Lock"]){
+		PSSpecifier *first = items.count > 0?items[1]:nil;
 		NSMutableArray *additional = [[NSMutableArray alloc] init];
 		for(int i = 0; i < items.count - 1; i++)
 			[additional addObject:items[i]];
