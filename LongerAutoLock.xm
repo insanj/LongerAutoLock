@@ -4,7 +4,13 @@
 #define LLPREFS_PATH [NSHomeDirectory() stringByAppendingPathComponent:@"/Library/Application Support/LongerAutoLock"]
 #define LLPREFS_PLIST [NSHomeDirectory() stringByAppendingPathComponent:@"/Library/Application Support/LongerAutoLock/SavedDurations.plist"]
 #define LLLAST_PLIST [NSHomeDirectory() stringByAppendingPathComponent:@"/Library/Application Support/LongerAutoLock/LastSelected.plist"]
-#define LLDEFAULT_TITLES @[@"1 Minute", @"2 Minutes", @"3 Minutes", @"4 Minutes", @"5 Minutes", @"Never"]
+#define LLDEFAULT_TITLES @[[[NSBundle mainBundle] localizedStringForKey:@"1_MINUTES" value:@"1 Minute" table:@"General"], [[NSBundle mainBundle] localizedStringForKey:@"2_MINUTES" value:@"2 Minutes" table:@"General"], [[NSBundle mainBundle] localizedStringForKey:@"3_MINUTES" value:@"3 Minutes" table:@"General"], [[NSBundle mainBundle] localizedStringForKey:@"4_MINUTES" value:@"4 Minutes" table:@"General"], [[NSBundle mainBundle] localizedStringForKey:@"5_MINUTES" value:@"5 Minutes" table:@"General"], [[NSBundle mainBundle] localizedStringForKey:@"NEVER" value:@"Never" table:@"General"]]
+
+#define LLGENERAL_TEXT  [[NSBundle mainBundle] localizedStringForKey:@"General" value:@"General" table:@"General"]
+#define LLAUTOLOCK_TEXT  [[NSBundle mainBundle] localizedStringForKey:@"AUTOLOCK" value:@"Auto-Lock" table:@"General"]
+#define LLLOCALIZE_TEXT [[NSBundle mainBundle] localizedStringForKey:@"10_MINUTES" value:@"%@ Minutes" table:@"General"]
+
+#define LLLOCALIZE(str) [NSString stringWithFormat:LLLOCALIZE_TEXT, str]
 
 @interface LLAlertViewDelegate : NSObject <UIAlertViewDelegate>
 -(void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex;
@@ -16,7 +22,7 @@
 		NSString *durationText = [alertView textFieldAtIndex:0].text;
 		NSNumber *duration = [NSNumber numberWithInt:[durationText intValue] * 60];
 		if(!duration || [duration intValue] <= 300){
-			[[[UIAlertView alloc] initWithTitle:@"Auto-Lock Duration Invalid" message:[NSString stringWithFormat:@"The requested duration, %@, is invalid. Make sure your requests are new, minute-long durations, nothing more or less.", durationText] delegate:nil cancelButtonTitle:@"Dismiss" otherButtonTitles:nil] show];
+			[[[UIAlertView alloc] initWithTitle:[LLAUTOLOCK_TEXT stringByAppendingString:@" Duration Invalid"] message:[NSString stringWithFormat:@"The requested duration, %@, is invalid. Make sure your requests are new, minute-long durations, nothing more or less.", durationText] delegate:nil cancelButtonTitle:@"Dismiss" otherButtonTitles:nil] show];
 			return;
 		}
 
@@ -24,7 +30,7 @@
 		NSDictionary *finalized;
 		BOOL isDuplicate = NO;
 		if(![fileManager fileExistsAtPath:LLPREFS_PLIST]){
-			NSDictionary *newPrefs = @{[duration stringValue] : [durationText stringByAppendingString:@" Minutes"]};
+			NSDictionary *newPrefs = @{[duration stringValue] : LLLOCALIZE(durationText)};
 			finalized = newPrefs;
 		}
 
@@ -38,14 +44,14 @@
 					[newPrefs setObject:[savedPrefs objectForKey:key] forKey:key];
 			
 			if(!isDuplicate)
-				[newPrefs setObject:[durationText stringByAppendingString:@" Minutes"] forKey:[duration stringValue]];
+				[newPrefs setObject:LLLOCALIZE(durationText) forKey:[duration stringValue]];
 
 			finalized = newPrefs;
 		}
 
 		NSLog(@"[LongerAutoLock]: Wrote the augmented specifier plist (%@) to file %@.", finalized, LLPREFS_PLIST);
 		[finalized writeToFile:LLPREFS_PLIST atomically:YES];
-		[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"LLAddSpecifier" object:nil userInfo:@{@"LLTitle" : [durationText stringByAppendingString:@" Minutes"]}];
+		[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"LLAddSpecifier" object:nil userInfo:@{@"LLTitle" : LLLOCALIZE(durationText)}];
 
 		if(isDuplicate && alertView.tag == [durationText intValue])
 			[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"LLReselectSpecifier" object:nil];
@@ -65,10 +71,10 @@ static LLAlertViewDelegate *lldelegate;
 -(void)viewWillAppear:(BOOL)animated{
 	%orig();
 
-	if([self.navigationItem.title isEqualToString:@"General"])
+	if([self.navigationItem.title isEqualToString:LLGENERAL_TEXT])
 		[self reloadSpecifiers];
 
-	if([self.navigationItem.title isEqualToString:@"Auto-Lock"]){
+	if([self.navigationItem.title isEqualToString:LLAUTOLOCK_TEXT]){
 		self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCompose target:self action:@selector(longerautolock_promptUserForSpecifier)];
 		[[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(longerautolock_addSpecifierForNotification:) name:@"LLAddSpecifier" object:nil];
 		[[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(longerautolock_reselectSpecifier) name:@"LLReselectSpecifier" object:nil];
@@ -87,7 +93,7 @@ static LLAlertViewDelegate *lldelegate;
 
 -(PSTableCell *)tableView:(UITableView *)arg1 cellForRowAtIndexPath:(NSIndexPath *)arg2{
 	PSTableCell *cell = %orig();
-	if([cell.title isEqualToString:@"Auto-Lock"] && [NSDictionary dictionaryWithContentsOfFile:LLLAST_PLIST] != nil)
+	if([cell.title isEqualToString:LLAUTOLOCK_TEXT] && [NSDictionary dictionaryWithContentsOfFile:LLLAST_PLIST] != nil)
 		for(UIView *subview in cell.contentView.subviews)
 			if([subview isKindOfClass:[%c(UITableViewLabel) class]])
 				[(UITableViewLabel *)subview setText:[NSDictionary dictionaryWithContentsOfFile:LLLAST_PLIST][@"LLLastText"]];
@@ -96,7 +102,7 @@ static LLAlertViewDelegate *lldelegate;
 }
 
 -(void)viewWillDisappear:(BOOL)animated{
-	if([self.navigationItem.title isEqualToString:@"Auto-Lock"]){
+	if([self.navigationItem.title isEqualToString:LLAUTOLOCK_TEXT]){
 		[[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
 
 		for(int i = 0; i < [[self table] numberOfRowsInSection:0]; i++){
@@ -161,7 +167,7 @@ static BOOL lladdedHeavyLine;
 	lladdedHeavyLine = NO;
 	%orig();
 
-	if([self.navigationItem.title isEqualToString:@"Auto-Lock"])
+	if([self.navigationItem.title isEqualToString:LLAUTOLOCK_TEXT])
 		[self longerautolock_addFooterToView];
 }
 
@@ -169,13 +175,15 @@ static BOOL lladdedHeavyLine;
 	lladdedHeavyLine = NO;
 	%orig();
 
-	if([self.navigationItem.title isEqualToString:@"Auto-Lock"])
+	if([self.navigationItem.title isEqualToString:LLAUTOLOCK_TEXT])
 		[self longerautolock_addFooterToView];
 }
 
 -(id)tableView:(id)arg1 cellForRowAtIndexPath:(id)arg2{
 	PSTableCell *cell = (PSTableCell *)%orig();
-	if([self.navigationItem.title isEqualToString:@"Auto-Lock"] && ![LLDEFAULT_TITLES containsObject:[cell title]] && !lladdedHeavyLine){
+
+	int minutes = [[[cell title] componentsSeparatedByString:@" "][0] intValue];
+	if([self.navigationItem.title isEqualToString:LLAUTOLOCK_TEXT] && minutes > 5 && !lladdedHeavyLine){
 		lladdedHeavyLine = YES;
 		
 		UIView *heavyLine = [[UIView alloc] initWithFrame:CGRectMake(15.0, 0.0, cell.frame.size.width - 15.0, 2.0)];
@@ -207,9 +215,9 @@ static BOOL lladdedHeavyLine;
 
 -(id)itemsFromParent{
 	NSArray *items = %orig();
-	NSLog(@"[LongerAutoLock] Received call to -itemsFromParent, appears we %@ in Auto-Lock pane (%@)", NSStringFromBool([self.navigationItem.title isEqualToString:@"Auto-Lock"]), self);
+	NSLog(@"[LongerAutoLock] Received call to -itemsFromParent, appears we %@ in Auto-Lock pane (%@)", NSStringFromBool([self.navigationItem.title isEqualToString:LLAUTOLOCK_TEXT]), self);
 	
-	if([self.navigationItem.title isEqualToString:@"Auto-Lock"]){
+	if([self.navigationItem.title isEqualToString:LLAUTOLOCK_TEXT]){
 		PSSpecifier *first = items.count > 0?items[1]:nil;
 		NSMutableArray *additional = [[NSMutableArray alloc] init];
 		for(int i = 0; i < items.count - 1; i++)
