@@ -186,7 +186,7 @@ static BOOL lladdedHeavyLine;
 	if([self.navigationItem.title isEqualToString:LLAUTOLOCK_TEXT] && minutes > 5 && !lladdedHeavyLine){
 		lladdedHeavyLine = YES;
 		
-		UIView *heavyLine = [[UIView alloc] initWithFrame:CGRectMake(15.0, 0.0, cell.frame.size.width - 15.0, 2.0)];
+		UIView *heavyLine = [[UIView alloc] initWithFrame:CGRectMake(15.0, 0.0, arg1.frame.size.width - 15.0, 2.0)];
 		[heavyLine setBackgroundColor:[UIColor lightGrayColor]];
         [cell.contentView addSubview:heavyLine];
 	}
@@ -201,7 +201,7 @@ static BOOL lladdedHeavyLine;
 	}
 
 	NSString *footerText = @"Shorter Auto-Lock times are more secure. Using a custom LongerAutoLock time forfeits possible privacy and battery life for convenience. Please use responsibly.";
-	CGSize footerSize = [footerText boundingRectWithSize:CGSizeMake([UIApplication sharedApplication].keyWindow.frame.size.width - 40.0, CGFLOAT_MAX) options:NSStringDrawingUsesLineFragmentOrigin attributes:@{NSFontAttributeName : [UIFont systemFontOfSize:13.0]} context:nil].size;
+	CGSize footerSize = [footerText boundingRectWithSize:CGSizeMake(self.view.superview.frame.size.width - 20.0, CGFLOAT_MAX) options:NSStringDrawingUsesLineFragmentOrigin attributes:@{NSFontAttributeName : [UIFont systemFontOfSize:13.0]} context:nil].size;
 		
     llfooterLabel = [[UILabel alloc] initWithFrame:CGRectMake(10.0, [[self table] rectForSection:0].size.height + 25.0, footerSize.width, footerSize.height)];
 	llfooterLabel.numberOfLines = 0;
