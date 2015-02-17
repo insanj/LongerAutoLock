@@ -1,38 +1,6 @@
 #import "LongerAutoLock.h"
 
-#define NSStringFromBool(a) a?@"are":@"aren't"
-
-#define GENERAL_TEXT  [[NSBundle mainBundle] localizedStringForKey:@"General" value:@"General" table:@"General"]
-#define AUTOLOCK_TEXT  [[NSBundle mainBundle] localizedStringForKey:@"AUTOLOCK" value:@"Auto-Lock" table:@"General"]
-#define LOCALIZE_TEXT [[NSBundle mainBundle] localizedStringForKey:@"10_MINUTES" value:@"%@ Minutes" table:@"General"]
-
-#define LOCALIZE(str) [NSString stringWithFormat:LOCALIZE_TEXT, str]
-
-static NSString * kLongerAutoLockIdentifier = @"com.insanj.longerautolock";
-static NSString * kLongerAutoLockTimesIdentifier = @"LongerAutoLock.Times", *kLongerAutoLockSelectedRowIdentifier = @"LongerAutoLock.Row", *kLongerAutoLockLastSelectedTitle = @"LongerAutoLock.Title";
-
-static HBPreferences *longerAutoLockPreferences;
-
 %hook PSListController
-
-/*
-                                  _  
-                                 | | 
-   __ _  ___ _ __   ___ _ __ __ _| | 
-  / _` |/ _ \ '_ \ / _ \ '__/ _` | | 
- | (_| |  __/ | | |  __/ | | (_| | | 
-  \__, |\___|_| |_|\___|_|  \__,_|_| 
-   __/ |                             
-  |___/                                                                    
-*/
-- (void)viewWillAppear:(BOOL)animated {
-	%orig();
-
-	// If we're in "General", make sure the specifiers are reloaded so the detail can be configured (cellForRow)
-	if ([self.navigationItem.title isEqualToString:GENERAL_TEXT]) {
-		[self reloadSpecifiers];
-	}
-}
 
 /*      _                              _           _   _             
      | |                            | |         | | (_)            
@@ -40,21 +8,24 @@ static HBPreferences *longerAutoLockPreferences;
  / __| '_ \ / _ \ \ /\ / / / __|/ _ \ |/ _ \/ __| __| |/ _ \| '_ \ 
  \__ \ | | | (_) \ V  V /  \__ \  __/ |  __/ (__| |_| | (_) | | | |
  |___/_| |_|\___/ \_/\_/   |___/\___|_|\___|\___|\__|_|\___/|_| |_|
-*/                                                                                                                               
+*/                                                                                                                           
 - (PSTableCell *)tableView:(UITableView *)arg1 cellForRowAtIndexPath:(NSIndexPath *)arg2 {
 	PSTableCell *cell = %orig();
 
 	// HBPreferences *preferencesConnection = [[HBPreferences alloc] initWithIdentifier:kLongerAutoLockIdentifier];
 	// NSInteger lastSelectedRow = [longerAutoLockPreferences integerForKey:kLongerAutoLockSelectedRowIdentifier default:-1];
 	// NSMutableArray *savedTimes = [preferencesConnection objectForKey:kLongerAutoLockTimesIdentifier];
-	NSString *lastSelectedTitle = (NSString *)[longerAutoLockPreferences objectForKey:kLongerAutoLockLastSelectedTitle];
+	NSString *lastSelectedTitle = (NSString *)[longerAutoLockPreferences objectForKey:kLongerAutoLockLastSelectedTitleIdentifier default:nil];
 
 	// Set the detail text of the "Auto Lock" main cell (in General)
+	// 							hacky legacy code.... scary for me too....
 	if (lastSelectedTitle && [cell.title isEqualToString:AUTOLOCK_TEXT]) {
-		for (UIView *subview in cell.contentView.subviews) {
-			if ([subview isKindOfClass:[%c(UITableViewLabel) class]]) {
-				[(UITableViewLabel *)subview setText:lastSelectedTitle];
-// [NSNumberFormatter localizedStringFromNumber:(NSNumber *)savedTimes[lastSelectedRow] numberStyle:NSNumberFormatterDecimalStyle]
+		NSArray *contentViewSubviews = cell.contentView.subviews;
+		for (int i = contentViewSubviews.count - 1; i >= 0; i--) {
+			UITableViewLabel *detailLabel = contentViewSubviews[i];
+			if ([detailLabel isKindOfClass:[%c(UITableViewLabel) class]]) {
+				[detailLabel setText:lastSelectedTitle];
+				break;
 			}
 		}
 	}
@@ -96,7 +67,7 @@ static HBPreferences *longerAutoLockPreferences;
 	}
 }
 
-/*                                 _           _   _             
+/*                               _           _   _             
                                 | |         | | (_)            
   ___  __ ___   _____   ___  ___| | ___  ___| |_ _  ___  _ __  
  / __|/ _` \ \ / / _ \ / __|/ _ \ |/ _ \/ __| __| |/ _ \| '_ \ 
@@ -106,11 +77,12 @@ static HBPreferences *longerAutoLockPreferences;
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
 	// Save the row every time a cell is selected, because once we set a value here it's trusted to ALWAYS be accurate (above)
 	[longerAutoLockPreferences setInteger:indexPath.row forKey:kLongerAutoLockSelectedRowIdentifier];
+	[longerAutoLockPreferences setObject:((PSTableCell *)[tableView cellForRowAtIndexPath:indexPath]).title forKey:kLongerAutoLockLastSelectedTitleIdentifier];
 	%orig();
 }
 
 %new - (void)longerautolock_addButtonTapped:(UIBarButtonItem *)sender {
-	UIAlertView *optionsPrompt = [[UIAlertView alloc] initWithTitle:@"Modify Auto-Lock Options" message:@"Enter your desired longer auto-lock duration in minutes to add it, or an already-existing duration to remove it, then tap Done." delegate:self cancelButtonTitle:@"Cancel" otherButtonTitles:@"Done", nil];
+	UIAlertView *optionsPrompt = [[UIAlertView alloc] initWithTitle:@"Longer Auto Lock" message:[LOCALIZE_NUM(@"How many") stringByAppendingString:@"?"] delegate:self cancelButtonTitle:@"Cancel" otherButtonTitles:@"Done", nil];
 	optionsPrompt.alertViewStyle = UIAlertViewStylePlainTextInput;
 
 	UITextField *optionsPromptTextField = [optionsPrompt textFieldAtIndex:0];
@@ -139,19 +111,19 @@ static HBPreferences *longerAutoLockPreferences;
 		}
 
 		// HBPreferences *preferencesConnection = [[HBPreferences alloc] initWithIdentifier:kLongerAutoLockIdentifier];
-		NSMutableArray *savedDurations = [longerAutoLockPreferences objectForKey:kLongerAutoLockTimesIdentifier];
+		NSArray *savedDurations = [longerAutoLockPreferences objectForKey:kLongerAutoLockTimesIdentifier default:nil];
 
-		if (!savedDurations) {
-			savedDurations = [NSMutableArray arrayWithArray:@[duration]];
+		if (!savedDurations || ![savedDurations isKindOfClass:[NSArray class]]) {
+			savedDurations = @[duration];
 			[longerAutoLockPreferences setObject:savedDurations forKey:kLongerAutoLockTimesIdentifier];
 		}
 
 		else {
-			[savedDurations insertObject:duration atIndex:0];
+			savedDurations = [@[duration] arrayByAddingObjectsFromArray:savedDurations];
 			[longerAutoLockPreferences setObject:savedDurations forKey:kLongerAutoLockTimesIdentifier];
 		}
 
-		[longerAutoLockPreferences setInteger:([[self table] numberOfRowsInSection:0]+savedDurations.count-1) forKey:kLongerAutoLockSelectedRowIdentifier];
+		[longerAutoLockPreferences setInteger:(([[self table] numberOfRowsInSection:0]-2)+savedDurations.count-1) forKey:kLongerAutoLockSelectedRowIdentifier];
 		[self longerautolock_reselectSpecifier];
 	}
 }
@@ -175,18 +147,20 @@ static HBPreferences *longerAutoLockPreferences;
 			[mutableItems addObject:items[i]];
 		}
 
-		NSMutableArray *savedTimes = (NSMutableArray *)[longerAutoLockPreferences objectForKey:kLongerAutoLockTimesIdentifier];
+		NSArray *savedTimes = (NSArray *)[longerAutoLockPreferences objectForKey:kLongerAutoLockTimesIdentifier default:nil];
 		if (savedTimes) {
 			PSSpecifier *firstRealSpecifier = items.count > 0 ? items[1] : nil;
 
 			for (int i = 0; i < savedTimes.count; i++){
 				NSNumber *savedTime = (NSNumber *)savedTimes[i];
-				NSString *savedTimeKey = [savedTime stringValue];
+				// NSString *savedTimeKey = [savedTime stringValue];
+				NSString *savedTimeName = LOCALIZE_NUM(@([savedTime integerValue] / 60.0));
+				// [NSNumberFormatter localizedStringFromNumber:savedTime numberStyle:NSNumberFormatterDecimalStyle]
 
-				PSSpecifier *savedTimeSpecifier = [PSSpecifier preferenceSpecifierNamed:savedTimeKey target:[firstRealSpecifier target] set:MSHookIvar<SEL>(firstRealSpecifier, "setter") get:MSHookIvar<SEL>(firstRealSpecifier, "getter") detail:[firstRealSpecifier detailControllerClass] cell:[firstRealSpecifier cellType] edit:[firstRealSpecifier editPaneClass]];
+				PSSpecifier *savedTimeSpecifier = [PSSpecifier preferenceSpecifierNamed:savedTimeName target:[firstRealSpecifier target] set:MSHookIvar<SEL>(firstRealSpecifier, "setter") get:MSHookIvar<SEL>(firstRealSpecifier, "getter") detail:[firstRealSpecifier detailControllerClass] cell:[firstRealSpecifier cellType] edit:[firstRealSpecifier editPaneClass]];
 				[savedTimeSpecifier setValues:@[savedTime]];
-				[savedTimeSpecifier setTitleDictionary:@{savedTime : savedTimeKey}];
-				[savedTimeSpecifier setShortTitleDictionary:@{savedTime : savedTimeKey}];
+				[savedTimeSpecifier setTitleDictionary:@{savedTime : savedTimeName}];
+				[savedTimeSpecifier setShortTitleDictionary:@{savedTime : savedTimeName}];
 				[mutableItems addObject:savedTimeSpecifier];
 			}	
 		}
@@ -198,6 +172,14 @@ static HBPreferences *longerAutoLockPreferences;
 	return items;
 }
 
+/*
+  _   _                           _           _   
+ | | (_)                         | |         | |  
+ | |_ _ _ __ ___   ___   ___  ___| | ___  ___| |_ 
+ | __| | '_ ` _ \ / _ \ / __|/ _ \ |/ _ \/ __| __|
+ | |_| | | | | | |  __/ \__ \  __/ |  __/ (__| |_ 
+  \__|_|_| |_| |_|\___| |___/\___|_|\___|\___|\__|
+*/
 %new - (void)longerautolock_reselectSpecifier {
 	[self reloadSpecifiers];
 
@@ -209,6 +191,15 @@ static HBPreferences *longerAutoLockPreferences;
 
 %end
 
+/*
+       _             
+      | |            
+   ___| |_ ___  _ __ 
+  / __| __/ _ \| '__|
+ | (__| || (_) | |   
+  \___|\__\___/|_|   
+*/
 %ctor {
 	longerAutoLockPreferences = [[HBPreferences alloc] initWithIdentifier:kLongerAutoLockIdentifier];
+	[longerAutoLockPreferences setInteger:0 forKey:kLongerAutoLockSelectedRowIdentifier];
 }
