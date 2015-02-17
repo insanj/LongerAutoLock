@@ -11,6 +11,15 @@ static HBPreferences *getLongerAutoLockPreferences() {
 
 %hook PSListController
 
+- (void)viewWillAppear:(BOOL)animated {
+	%orig();
+
+	// Make sure the proper value text appears (such as when backing out from the Auto Lock pane)
+	if ([self.navigationItem.title isEqualToString:GENERAL_TEXT]) {
+		[self reloadSpecifiers];
+	}
+}
+
 /*      _                              _           _   _             
      | |                            | |         | | (_)            
   ___| |__   _____      __  ___  ___| | ___  ___| |_ _  ___  _ __  
@@ -20,10 +29,6 @@ static HBPreferences *getLongerAutoLockPreferences() {
 */                                                                                                                           
 - (PSTableCell *)tableView:(UITableView *)arg1 cellForRowAtIndexPath:(NSIndexPath *)arg2 {
 	PSTableCell *cell = %orig();
-
-	// HBPreferences *preferencesConnection = [[HBPreferences alloc] initWithIdentifier:kLongerAutoLockIdentifier];
-	// NSInteger lastSelectedRow = [longerAutoLockPreferences integerForKey:kLongerAutoLockSelectedRowIdentifier default:-1];
-	// NSMutableArray *savedTimes = [longerAutoLockPreferences objectForKey:kLongerAutoLockTimesIdentifier];
 	NSString *lastSelectedTitle = (NSString *)[getLongerAutoLockPreferences() objectForKey:kLongerAutoLockLastSelectedTitleIdentifier default:nil];
 
 	// Set the detail text of the "Auto Lock" main cell (in General)
@@ -81,7 +86,7 @@ static HBPreferences *getLongerAutoLockPreferences() {
 	// Save the row every time a cell is selected, because once we set a value here it's trusted to ALWAYS be accurate (above)
 	HBPreferences *preferences = getLongerAutoLockPreferences();
 	[preferences setInteger:indexPath.row forKey:kLongerAutoLockSelectedRowIdentifier];
-	[preferences setObject:((PSTableCell *)[tableView cellForRowAtIndexPath:indexPath]).title forKey:kLongerAutoLockLastSelectedTitleIdentifier];
+	[preferences setObject:[[((PSSpecifier *)[self itemsFromParent][indexPath.row+1]).shortTitleDictionary allValues] firstObject] forKey:kLongerAutoLockLastSelectedTitleIdentifier];
 }
 
 %new - (void)longerautolock_addButtonTapped:(UIBarButtonItem *)sender {
@@ -120,6 +125,12 @@ static HBPreferences *getLongerAutoLockPreferences() {
 			savedDurations = @[duration];
 		}
 
+		else if ([savedDurations containsObject:duration]) {
+			NSMutableArray *duplicateRemovingDurations = [savedDurations mutableCopy];
+			[duplicateRemovingDurations removeObject:duration];
+			savedDurations = [NSArray arrayWithArray:duplicateRemovingDurations];
+		}
+
 		else {
 			savedDurations = [@[duration] arrayByAddingObjectsFromArray:savedDurations];
 		}
@@ -128,7 +139,6 @@ static HBPreferences *getLongerAutoLockPreferences() {
 		[sortedDurations sortUsingDescriptors:@[[NSSortDescriptor sortDescriptorWithKey:@"self" ascending:YES]]];
 		[preferences setObject:sortedDurations forKey:kLongerAutoLockTimesIdentifier];
 
-		// [preferences setInteger:(([[self table] numberOfRowsInSection:0]-2)+savedDurations.count-1) forKey:kLongerAutoLockSelectedRowIdentifier];
 		[self longerautolock_reselectSpecifier];
 	}
 }
@@ -171,9 +181,7 @@ static HBPreferences *getLongerAutoLockPreferences() {
 
 			for (int i = 0; i < savedTimes.count; i++){
 				NSNumber *savedTime = (NSNumber *)savedTimes[i];
-				// NSString *savedTimeKey = [savedTime stringValue];
 				NSString *savedTimeName = LOCALIZE_NUM(@([savedTime integerValue] / 60.0));
-				// [NSNumberFormatter localizedStringFromNumber:savedTime numberStyle:NSNumberFormatterDecimalStyle]
 
 				PSSpecifier *savedTimeSpecifier = [PSSpecifier preferenceSpecifierNamed:savedTimeName target:[firstRealSpecifier target] set:MSHookIvar<SEL>(firstRealSpecifier, "setter") get:MSHookIvar<SEL>(firstRealSpecifier, "getter") detail:[firstRealSpecifier detailControllerClass] cell:[firstRealSpecifier cellType] edit:[firstRealSpecifier editPaneClass]];
 				[savedTimeSpecifier setValues:@[savedTime]];
@@ -191,16 +199,3 @@ static HBPreferences *getLongerAutoLockPreferences() {
 }
 
 %end
-
-/*
-       _             
-      | |            
-   ___| |_ ___  _ __ 
-  / __| __/ _ \| '__|
- | (__| || (_) | |   
-  \___|\__\___/|_|   
-
-%ctor {
-	getLongerAutoLockPreferences = [[HBPreferences alloc] initWithIdentifier:kLongerAutoLockIdentifier];
-	[getLongerAutoLockPreferences setInteger:0 forKey:kLongerAutoLockSelectedRowIdentifier];
-}*/

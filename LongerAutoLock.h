@@ -20,4 +20,3 @@
 
 static NSString * kLongerAutoLockIdentifier = @"com.insanj.longerautolock";
 static NSString * kLongerAutoLockTimesIdentifier = @"LongerAutoLock.Times", *kLongerAutoLockSelectedRowIdentifier = @"LongerAutoLock.Row", *kLongerAutoLockLastSelectedTitleIdentifier = @"LongerAutoLock.Title";
-
