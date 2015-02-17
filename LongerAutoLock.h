@@ -4,6 +4,12 @@
 #import <Preferences/Preferences.h>
 #import "substrate.h"
 
+#ifdef DEBUG
+    #define LOG(fmt, ...) NSLog((@"[LongerAutoLock] %s [Line %d] " fmt), __PRETTY_FUNCTION__, __LINE__, ##__VA_ARGS__)
+#else
+    #define LOG(fmt, ...) 
+#endif
+
 #define NSStringFromBool(a) a?@"are":@"aren't"
 
 #define GENERAL_TEXT  [[NSBundle mainBundle] localizedStringForKey:@"General" value:@"General" table:@"General"]
@@ -15,10 +21,3 @@
 static NSString * kLongerAutoLockIdentifier = @"com.insanj.longerautolock";
 static NSString * kLongerAutoLockTimesIdentifier = @"LongerAutoLock.Times", *kLongerAutoLockSelectedRowIdentifier = @"LongerAutoLock.Row", *kLongerAutoLockLastSelectedTitleIdentifier = @"LongerAutoLock.Title";
 
-static HBPreferences *longerAutoLockPreferences;
-
-@interface UITableViewLabel : UILabel
-
-- (void)setText:(NSString *)arg1;
-
-@end
