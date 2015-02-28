@@ -10,8 +10,6 @@
     #define LOG(fmt, ...) 
 #endif
 
-#define NSStringFromBool(a) a?@"are":@"aren't"
-
 #define GENERAL_TEXT  [[NSBundle mainBundle] localizedStringForKey:@"General" value:@"General" table:@"General"]
 #define AUTOLOCK_TEXT  [[NSBundle mainBundle] localizedStringForKey:@"AUTOLOCK" value:@"Auto-Lock" table:@"General"]
 #define LOCALIZE_NUM_TEXT [[NSBundle mainBundle] localizedStringForKey:@"10_MINUTES" value:@"%@ Minutes" table:@"General"]

@@ -1,5 +1,7 @@
 #import "LongerAutoLock.h"
 
+static NSInteger kLongerAutoLockAlertTag = 666;
+
 static HBPreferences *longerAutoLockPreferences;
 static HBPreferences *getLongerAutoLockPreferences() {
 	if (!longerAutoLockPreferences) {
@@ -92,6 +94,7 @@ static HBPreferences *getLongerAutoLockPreferences() {
 %new - (void)longerautolock_addButtonTapped:(UIBarButtonItem *)sender {
 	UIAlertView *optionsPrompt = [[UIAlertView alloc] initWithTitle:@"Longer Auto Lock" message:[LOCALIZE_NUM(@"How many") stringByAppendingString:@"?"] delegate:self cancelButtonTitle:@"Cancel" otherButtonTitles:@"Done", nil];
 	optionsPrompt.alertViewStyle = UIAlertViewStylePlainTextInput;
+	optionsPrompt.tag = kLongerAutoLockAlertTag;
 
 	UITextField *optionsPromptTextField = [optionsPrompt textFieldAtIndex:0];
     optionsPromptTextField.placeholder = @"e.g. 10, 15";
@@ -109,7 +112,7 @@ static HBPreferences *getLongerAutoLockPreferences() {
   \__,_|\__,_|\__,_|  \__|_|_| |_| |_|\___|
 */                                
 %new - (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex {
-	if (buttonIndex != [alertView cancelButtonIndex]) {
+	if (alertView.tag == kLongerAutoLockAlertTag && buttonIndex != [alertView cancelButtonIndex]) {
 		NSString *durationText = [alertView textFieldAtIndex:0].text;
 		NSNumber *duration = @([durationText intValue] * 60);
 
