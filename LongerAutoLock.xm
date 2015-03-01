@@ -1,7 +1,5 @@
 #import "LongerAutoLock.h"
 
-static NSInteger kLongerAutoLockAlertTag = 666;
-
 static HBPreferences *longerAutoLockPreferences;
 static HBPreferences *getLongerAutoLockPreferences() {
 	if (!longerAutoLockPreferences) {
@@ -31,11 +29,14 @@ static HBPreferences *getLongerAutoLockPreferences() {
 */                                                                                                                           
 - (PSTableCell *)tableView:(UITableView *)arg1 cellForRowAtIndexPath:(NSIndexPath *)arg2 {
 	PSTableCell *cell = %orig();
-	NSString *lastSelectedTitle = (NSString *)[getLongerAutoLockPreferences() objectForKey:kLongerAutoLockLastSelectedTitleIdentifier default:nil];
 
-	// Set the detail text of the "Auto Lock" main cell (in General)
-	if (lastSelectedTitle && [cell.title isEqualToString:AUTOLOCK_TEXT]) {
-		cell.value = lastSelectedTitle;
+	if ([self.navigationItem.title isEqualToString:GENERAL_TEXT]) {
+		NSString *lastSelectedTitle = (NSString *)[getLongerAutoLockPreferences() objectForKey:kLongerAutoLockLastSelectedTitleIdentifier default:nil];
+
+		// Set the detail text of the "Auto Lock" main cell (in General)
+		if (lastSelectedTitle && [cell.title isEqualToString:AUTOLOCK_TEXT]) {
+			cell.value = lastSelectedTitle;
+		}
 	}
 
 	return cell;
@@ -85,16 +86,17 @@ static HBPreferences *getLongerAutoLockPreferences() {
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
 	%orig();
 
-	// Save the row every time a cell is selected, because once we set a value here it's trusted to ALWAYS be accurate (above)
-	HBPreferences *preferences = getLongerAutoLockPreferences();
-	[preferences setInteger:indexPath.row forKey:kLongerAutoLockSelectedRowIdentifier];
-	[preferences setObject:[[((PSSpecifier *)[self itemsFromParent][indexPath.row+1]).shortTitleDictionary allValues] firstObject] forKey:kLongerAutoLockLastSelectedTitleIdentifier];
+	if ([self.navigationItem.title isEqualToString:AUTOLOCK_TEXT]) {
+		// Save the row every time a cell is selected, because once we set a value here it's trusted to ALWAYS be accurate (above)
+		HBPreferences *preferences = getLongerAutoLockPreferences();
+		[preferences setInteger:indexPath.row forKey:kLongerAutoLockSelectedRowIdentifier];
+		[preferences setObject:[[((PSSpecifier *)[self itemsFromParent][indexPath.row+1]).shortTitleDictionary allValues] firstObject] forKey:kLongerAutoLockLastSelectedTitleIdentifier];
+	}
 }
 
 %new - (void)longerautolock_addButtonTapped:(UIBarButtonItem *)sender {
 	UIAlertView *optionsPrompt = [[UIAlertView alloc] initWithTitle:@"Longer Auto Lock" message:[LOCALIZE_NUM(@"How many") stringByAppendingString:@"?"] delegate:self cancelButtonTitle:@"Cancel" otherButtonTitles:@"Done", nil];
 	optionsPrompt.alertViewStyle = UIAlertViewStylePlainTextInput;
-	optionsPrompt.tag = kLongerAutoLockAlertTag;
 
 	UITextField *optionsPromptTextField = [optionsPrompt textFieldAtIndex:0];
     optionsPromptTextField.placeholder = @"e.g. 10, 15";
@@ -112,7 +114,7 @@ static HBPreferences *getLongerAutoLockPreferences() {
   \__,_|\__,_|\__,_|  \__|_|_| |_| |_|\___|
 */                                
 %new - (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex {
-	if (alertView.tag == kLongerAutoLockAlertTag && buttonIndex != [alertView cancelButtonIndex]) {
+	if ([self.navigationItem.title isEqualToString:AUTOLOCK_TEXT] && buttonIndex != [alertView cancelButtonIndex]) {
 		NSString *durationText = [alertView textFieldAtIndex:0].text;
 		NSNumber *duration = @([durationText intValue] * 60);
 

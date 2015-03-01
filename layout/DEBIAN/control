@@ -2,7 +2,7 @@ Package: com.insanj.longerautolock
 Name: LongerAutoLock
 Pre-Depends: firmware (>= 7.0)
 Depends: mobilesubstrate, ws.hbang.common (>= 1.2)
-Version: 1.1
+Version: 1.1.1
 Architecture: iphoneos-arm
 Description: More Auto Lock options.
 Maintainer: Julian Weiss <insanjmail@gmail.com>
